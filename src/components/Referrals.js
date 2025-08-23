@@ -126,83 +126,83 @@ const Referrals = () => {
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">Referral Network</h1>
-          <p className="text-xl text-gray-300">Invite friends and earn bonuses from their success</p>
+        <div className="text-center mb-8 sm:mb-12">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4">Referral Network</h1>
+          <p className="text-lg sm:text-xl text-gray-300">Invite friends and earn bonuses from their success</p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="glass rounded-xl p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+          <div className="glass rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm">Total Referrals</p>
-                <p className="text-2xl font-bold text-white">{referralStats.totalReferrals}</p>
+              <div className="flex-1 min-w-0 mr-3">
+                <p className="text-gray-400 text-xs sm:text-sm">Total Referrals</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">{referralStats.totalReferrals}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-purple-500 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-400 to-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
             </div>
           </div>
 
-          <div className="glass rounded-xl p-6">
+          <div className="glass rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm">Active Referrals</p>
-                <p className="text-2xl font-bold text-green-400">{referralStats.activeReferrals}</p>
+              <div className="flex-1 min-w-0 mr-3">
+                <p className="text-gray-400 text-xs sm:text-sm">Active Referrals</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-400">{referralStats.activeReferrals}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
-                <UserPlus className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
             </div>
           </div>
 
-          <div className="glass rounded-xl p-6">
+          <div className="glass rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm">Total Earnings</p>
-                <p className="text-2xl font-bold text-goat-gold">{formatCurrency(referralStats.totalEarnings)}</p>
+              <div className="flex-1 min-w-0 mr-3">
+                <p className="text-gray-400 text-xs sm:text-sm">Total Earnings</p>
+                <p className="text-lg sm:text-2xl font-bold text-goat-gold truncate">{formatCurrency(referralStats.totalEarnings)}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-r from-goat-gold to-orange-500 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-black" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-goat-gold to-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
               </div>
             </div>
           </div>
 
-          <div className="glass rounded-xl p-6">
+          <div className="glass rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm">Monthly Earnings</p>
-                <p className="text-2xl font-bold text-white">{formatCurrency(referralStats.monthlyEarnings)}</p>
+              <div className="flex-1 min-w-0 mr-3">
+                <p className="text-gray-400 text-xs sm:text-sm">Monthly Earnings</p>
+                <p className="text-lg sm:text-2xl font-bold text-white truncate">{formatCurrency(referralStats.monthlyEarnings)}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-500 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-400 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-8">
           {/* Referral Code Section */}
-          <div className="glass rounded-xl p-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Your Referral Code</h2>
+          <div className="glass rounded-xl p-4 sm:p-6 lg:p-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Your Referral Code</h2>
             
             <div className="mb-6">
               <label className="block text-gray-300 text-sm font-medium mb-2">
                 Referral Link
               </label>
-              <div className="flex">
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0">
                 <input
                   type="text"
                   value={`https://goat-platform.com/ref/${referralCode}`}
                   readOnly
-                  className="flex-1 bg-black/20 border border-gray-600 rounded-l-lg px-4 py-3 text-white focus:outline-none focus:border-goat-gold"
+                  className="flex-1 bg-black/20 border border-gray-600 rounded-lg sm:rounded-l-lg sm:rounded-r-none px-3 sm:px-4 py-2 sm:py-3 text-white focus:outline-none focus:border-goat-gold text-sm sm:text-base min-w-0"
                 />
                 <button
                   onClick={copyReferralCode}
-                  className="bg-goat-gold hover:bg-orange-500 text-black px-4 py-3 rounded-r-lg transition-colors duration-200 flex items-center"
+                  className="bg-goat-gold hover:bg-orange-500 text-black px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-l-none sm:rounded-r-lg transition-colors duration-200 flex items-center justify-center"
                 >
-                  {copied ? <CheckCircle className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                  {copied ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" /> : <Copy className="w-4 h-4 sm:w-5 sm:h-5" />}
                 </button>
               </div>
               {copied && (
@@ -241,8 +241,8 @@ const Referrals = () => {
           </div>
 
           {/* Bonus Calculator */}
-          <div className="glass rounded-xl p-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Bonus Calculator</h2>
+          <div className="glass rounded-xl p-4 sm:p-6 lg:p-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Bonus Calculator</h2>
             
             <div className="space-y-4">
               {bonusCalculations.map((calc, index) => (
@@ -272,8 +272,8 @@ const Referrals = () => {
         </div>
 
         {/* Network Tree */}
-        <div className="glass rounded-xl p-8">
-          <h2 className="text-2xl font-bold text-white mb-6">Your Network</h2>
+        <div className="glass rounded-xl p-4 sm:p-6 lg:p-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Your Network</h2>
           
           <div className="overflow-x-auto">
             <table className="w-full">

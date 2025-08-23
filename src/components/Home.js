@@ -209,9 +209,9 @@ const Home = () => {
                     <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                       <span className="text-white font-bold text-sm">1</span>
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold">Segui @seeker_insearchofurtune</p>
-                      <p className="text-gray-400 text-sm">Segui la nostra pagina Instagram ufficiale</p>
+                      <p className="text-gray-400 text-sm leading-relaxed">Segui la nostra pagina Instagram ufficiale</p>
                     </div>
                   </div>
                   
@@ -219,9 +219,9 @@ const Home = () => {
                     <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                       <Heart className="w-4 h-4 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold">Like giornaliero</p>
-                      <p className="text-gray-400 text-sm">Metti like ai post quotidiani</p>
+                      <p className="text-gray-400 text-sm leading-relaxed">Metti like ai post quotidiani</p>
                     </div>
                   </div>
                   
@@ -229,9 +229,9 @@ const Home = () => {
                     <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                       <MessageCircle className="w-4 h-4 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold">Commenta</p>
-                      <p className="text-gray-400 text-sm">Lascia un commento significativo</p>
+                      <p className="text-gray-400 text-sm leading-relaxed">Lascia un commento significativo</p>
                     </div>
                   </div>
                 </div>
@@ -342,33 +342,33 @@ const Home = () => {
                 <div className="space-y-4 mb-6">
                   <div className="flex items-start space-x-3">
                     <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold">Carta Decentralizzata</p>
-                      <p className="text-gray-400 text-sm">Tecnologia blockchain avanzata per pagamenti sicuri</p>
+                      <p className="text-gray-400 text-sm leading-relaxed">Tecnologia blockchain avanzata per pagamenti sicuri</p>
                     </div>
                   </div>
                   
                   <div className="flex items-start space-x-3">
                     <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold">Multi-Chain Compatible</p>
-                      <p className="text-gray-400 text-sm">Supporta reti BNB, ETH, TRX e altre blockchain</p>
+                      <p className="text-gray-400 text-sm leading-relaxed">Supporta reti BNB, ETH, TRX e altre blockchain</p>
                     </div>
                   </div>
                   
                   <div className="flex items-start space-x-3">
                     <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold">Reward Esclusivo</p>
-                      <p className="text-gray-400 text-sm">Ottieni la carta gratuitamente raggiungendo il rank Pulcini</p>
+                      <p className="text-gray-400 text-sm leading-relaxed">Ottieni la carta gratuitamente raggiungendo il rank Pulcini</p>
                     </div>
                   </div>
                   
                   <div className="flex items-start space-x-3">
                     <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold">Accesso Premium</p>
-                      <p className="text-gray-400 text-sm">Funzionalità avanzate e vantaggi esclusivi</p>
+                      <p className="text-gray-400 text-sm leading-relaxed">Funzionalità avanzate e vantaggi esclusivi</p>
                     </div>
                   </div>
                 </div>
@@ -396,9 +396,9 @@ const Home = () => {
                     <div className="w-10 h-10 bg-gradient-to-r from-gray-400 to-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-bold">0</span>
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <h4 className="text-lg font-semibold text-white mb-2">Inizia come Nuovo</h4>
-                      <p className="text-gray-400">
+                      <p className="text-gray-400 leading-relaxed">
                         Registrati sulla piattaforma e inizia il tuo percorso GOAT.
                       </p>
                       <div className="text-sm text-gray-500 mt-1">Target: $0 - $5,000</div>
@@ -409,9 +409,9 @@ const Home = () => {
                     <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <Trophy className="w-5 h-5 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <h4 className="text-lg font-semibold text-white mb-2">Raggiungi Rank Pulcini</h4>
-                      <p className="text-gray-400">
+                      <p className="text-gray-400 leading-relaxed">
                         Accumula $5,000 - $10,000 di network deposits + $1,000 deposito personale minimo.
                       </p>
                       <div className="text-sm text-green-400 mt-1 font-semibold">🎁 Reward: Carta WeFi Gratuita!</div>
@@ -425,9 +425,9 @@ const Home = () => {
                     <div className="w-10 h-10 bg-gradient-to-r from-goat-gold to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
                       <CreditCard className="w-5 h-5 text-black" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <h4 className="text-lg font-semibold text-white mb-2">Ricevi la Tua Carta</h4>
-                      <p className="text-gray-400">
+                      <p className="text-gray-400 leading-relaxed">
                         Una volta raggiunto il rank, riceverai automaticamente la tua carta WeFi decentralizzata.
                       </p>
                     </div>
@@ -437,9 +437,9 @@ const Home = () => {
                     <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <CheckCircle className="w-5 h-5 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <h4 className="text-lg font-semibold text-white mb-2">Goditi i Vantaggi</h4>
-                      <p className="text-gray-400">
+                      <p className="text-gray-400 leading-relaxed">
                         Usa la tua carta per accedere a funzionalità premium e vantaggi esclusivi.
                       </p>
                     </div>
