@@ -21,13 +21,13 @@ import {
 const Trophies = () => {
   const { isConnected, account } = useWallet();
   const [userProgress, setUserProgress] = useState({
-    currentLevel: 3,
-    totalNetworkDeposits: 45000,
-    unlockedTrophies: [1, 2, 3],
+    currentLevel: 0,
+    totalNetworkDeposits: 2500,
+    unlockedTrophies: [0],
     achievements: {
       firstDeposit: true,
-      firstReferral: true,
-      monthlyGoal: true,
+      firstReferral: false,
+      monthlyGoal: false,
       networkBuilder: false,
       topEarner: false,
       seriesChampion: false,
@@ -37,43 +37,64 @@ const Trophies = () => {
 
   const trophyLevels = [
     {
+      id: 0,
+      name: 'Nuovo',
+      requirement: '< $5,000 Network',
+      personalDeposit: '$0',
+      requiredAmount: 5000,
+      personalRequired: 0,
+      icon: '⚽',
+      color: 'from-gray-400 to-gray-600',
+      description: 'Welcome to GOAT platform',
+      benefits: ['Basic Access', 'Entry Level Features', 'Starter Badge'],
+      unlocked: true
+    },
+    {
       id: 1,
       name: 'Pulcini',
-      requirement: '< $10,000',
+      requirement: '$5K - $10K Network',
+      personalDeposit: '$1,000',
       requiredAmount: 10000,
+      personalRequired: 1000,
       icon: '🥉',
       color: 'from-green-400 to-green-600',
       description: 'First steps in the football world',
-      benefits: ['8-10% Monthly Returns', 'Basic Network Access', 'Bronze Trophy'],
-      unlocked: true
+      benefits: ['8-10% Monthly Returns', 'Basic Network Access', 'Bronze Trophy', '🎁 Carta WeFi Gratuita'],
+      unlocked: false
     },
     {
       id: 2,
       name: 'Esordienti',
-      requirement: '$10,000 - $20,000',
+      requirement: '$10K - $20K Network',
+      personalDeposit: '$3,000',
       requiredAmount: 20000,
+      personalRequired: 3000,
       icon: '🥈',
       color: 'from-blue-400 to-blue-600',
       description: 'Rising talent in the game',
       benefits: ['10-12% Monthly Returns', 'Enhanced Network Tools', 'Silver Trophy'],
-      unlocked: true
+      unlocked: false
     },
     {
       id: 3,
       name: 'Juniores',
-      requirement: '$20,000 - $80,000',
+      requirement: '$20K - $80K Network',
+      personalDeposit: '$10,000',
       requiredAmount: 80000,
+      personalRequired: 10000,
       icon: '🥇',
       color: 'from-purple-400 to-purple-600',
       description: 'Junior champion level',
       benefits: ['12% Monthly Returns', 'Advanced Analytics', 'Gold Trophy'],
-      unlocked: true
+      unlocked: false
     },
     {
       id: 4,
       name: 'Eccellenza',
-      requirement: '$80,000 - $150,000',
+      requirement: '$80K - $150K Network',
+      personalDeposit: '$15,000',
       requiredAmount: 150000,
+      personalRequired: 15000,
       icon: '🏆',
       color: 'from-yellow-400 to-yellow-600',
       description: 'Excellence in performance',
@@ -83,8 +104,10 @@ const Trophies = () => {
     {
       id: 5,
       name: 'Serie C',
-      requirement: '$150,000 - $500,000',
+      requirement: '$150K - $500K Network',
+      personalDeposit: '$25,000',
       requiredAmount: 500000,
+      personalRequired: 25000,
       icon: '🏅',
       color: 'from-orange-400 to-orange-600',
       description: 'Professional league level',
@@ -94,8 +117,10 @@ const Trophies = () => {
     {
       id: 6,
       name: 'Serie B',
-      requirement: '$500,000 - $1.5M',
+      requirement: '$500K - $1.5M Network',
+      personalDeposit: '$50,000',
       requiredAmount: 1500000,
+      personalRequired: 50000,
       icon: '👑',
       color: 'from-red-400 to-red-600',
       description: 'Elite championship status',
@@ -105,8 +130,10 @@ const Trophies = () => {
     {
       id: 7,
       name: 'Serie A',
-      requirement: '$1.5M+',
+      requirement: '$1.5M+ Network',
+      personalDeposit: '$100,000',
       requiredAmount: Infinity,
+      personalRequired: 100000,
       icon: '💎',
       color: 'from-goat-gold to-orange-500',
       description: 'Greatest of All Time',
@@ -288,7 +315,10 @@ const Trophies = () => {
                   {trophy.name}
                 </h3>
                 
-                <p className="text-gray-400 text-sm mb-3">{trophy.requirement}</p>
+                <div className="mb-3">
+                  <p className="text-gray-400 text-sm">{trophy.requirement}</p>
+                  <p className="text-gray-400 text-xs">Personal: {trophy.personalDeposit}</p>
+                </div>
                 <p className="text-gray-300 text-sm mb-4">{trophy.description}</p>
                 
                 <div className="space-y-1">

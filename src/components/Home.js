@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
-import { Trophy, Users, TrendingUp, Shield, Zap, Star, ArrowRight } from 'lucide-react';
+import { Trophy, Users, TrendingUp, Shield, Zap, Star, ArrowRight, Instagram, Heart, MessageCircle, CreditCard, AlertTriangle, CheckCircle, Upload, Gift } from 'lucide-react';
 
 const Home = () => {
   const { isConnected } = useWallet();
@@ -16,7 +16,7 @@ const Home = () => {
     {
       icon: TrendingUp,
       title: 'High Returns',
-      description: 'Earn up to 15% monthly returns based on your deposit amount',
+      description: 'Earn up to 16% monthly returns (15% base + 1% Instagram bonus)',
       color: 'from-green-400 to-blue-500'
     },
     {
@@ -181,6 +181,318 @@ const Home = () => {
                 Build your network, earn referral bonuses, and collect trophies as you climb ranks
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Instagram Bonus Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-pink-500/10 to-purple-500/10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center mb-6">
+              <Instagram className="w-12 h-12 text-pink-500 mr-4" />
+              <h2 className="text-4xl md:text-5xl font-bold">
+                <span className="gradient-text">Instagram</span> Bonus
+              </h2>
+            </div>
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              Segui la nostra pagina Instagram e guadagna un <span className="text-pink-500 font-bold">+1% bonus giornaliero</span> sui tuoi rendimenti!
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <div className="glass rounded-xl p-6">
+                <h3 className="text-2xl font-bold text-white mb-4">Come Funziona</h3>
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <span className="text-white font-bold text-sm">1</span>
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold">Segui @seeker_insearchofurtune</p>
+                      <p className="text-gray-400 text-sm">Segui la nostra pagina Instagram ufficiale</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <Heart className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold">Like giornaliero</p>
+                      <p className="text-gray-400 text-sm">Metti like ai post quotidiani</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <MessageCircle className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold">Commenta</p>
+                      <p className="text-gray-400 text-sm">Lascia un commento significativo</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <a
+                  href="https://instagram.com/seeker_insearchofurtune"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-purple-600 hover:to-pink-500 text-white font-bold text-lg rounded-lg transition-all duration-200 transform hover:scale-105"
+                >
+                  <Instagram className="w-6 h-6 mr-3" />
+                  Segui su Instagram
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="glass rounded-xl p-6 border-2 border-pink-500/30">
+                <h3 className="text-2xl font-bold text-white mb-6 text-center">Rendimenti Potenziati</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-3 bg-black/30 rounded-lg">
+                    <div>
+                      <span className="text-gray-300">≤ $100</span>
+                      <div className="text-xs text-gray-500">Base: 8%</div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-green-400">9%</span>
+                      <div className="text-xs text-pink-500">+1% bonus</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center p-3 bg-black/30 rounded-lg">
+                    <div>
+                      <span className="text-gray-300">$100 - $500</span>
+                      <div className="text-xs text-gray-500">Base: 10%</div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-blue-400">11%</span>
+                      <div className="text-xs text-pink-500">+1% bonus</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center p-3 bg-black/30 rounded-lg">
+                    <div>
+                      <span className="text-gray-300">$500 - $1,000</span>
+                      <div className="text-xs text-gray-500">Base: 12%</div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-purple-400">13%</span>
+                      <div className="text-xs text-pink-500">+1% bonus</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center p-3 bg-black/30 rounded-lg border border-goat-gold/30">
+                    <div>
+                      <span className="text-gray-300">&gt; $1,000</span>
+                      <div className="text-xs text-gray-500">Base: 15%</div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-goat-gold">16%</span>
+                      <div className="text-xs text-pink-500">+1% bonus</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl p-6 border border-pink-500/30">
+                <div className="text-center">
+                  <Star className="w-8 h-8 text-goat-gold mx-auto mb-3" />
+                  <p className="text-white font-semibold mb-2">Attività Giornaliera = Bonus Permanente</p>
+                  <p className="text-gray-300 text-sm">
+                    Mantieni l'attività quotidiana per ricevere il bonus del +1% ogni giorno sui tuoi guadagni!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* WeFi Card Reward Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-500/10 to-cyan-500/10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center mb-6">
+              <Gift className="w-12 h-12 text-cyan-500 mr-4" />
+              <h2 className="text-4xl md:text-5xl font-bold">
+                <span className="gradient-text">Carta WeFi</span> Reward
+              </h2>
+            </div>
+            <p className="text-xl text-gray-300 max-w-4xl mx-auto">
+              Raggiungi il <span className="text-cyan-500 font-bold">rank Pulcini</span> e ottieni una 
+              <span className="text-goat-gold font-bold"> carta WeFi decentralizzata</span> come premio esclusivo!
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* WeFi Card Info */}
+            <div className="space-y-6">
+              <div className="glass rounded-xl p-8 border-2 border-cyan-500/30">
+                <div className="flex items-center mb-6">
+                  <CreditCard className="w-10 h-10 text-goat-gold mr-4" />
+                  <h3 className="text-3xl font-bold text-white">Carta WeFi Gratuita</h3>
+                </div>
+                
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-white font-semibold">Carta Decentralizzata</p>
+                      <p className="text-gray-400 text-sm">Tecnologia blockchain avanzata per pagamenti sicuri</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-white font-semibold">Multi-Chain Compatible</p>
+                      <p className="text-gray-400 text-sm">Supporta reti BNB, ETH, TRX e altre blockchain</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-white font-semibold">Reward Esclusivo</p>
+                      <p className="text-gray-400 text-sm">Ottieni la carta gratuitamente raggiungendo il rank Pulcini</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-white font-semibold">Accesso Premium</p>
+                      <p className="text-gray-400 text-sm">Funzionalità avanzate e vantaggi esclusivi</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-lg p-4">
+                  <div className="flex items-center mb-2">
+                    <Gift className="w-5 h-5 text-cyan-400 mr-2" />
+                    <span className="text-cyan-400 font-semibold">REWARD PULCINI</span>
+                  </div>
+                  <p className="text-gray-300 text-sm">
+                    Raggiungi $5.000 - $10.000 di network deposits + $1.000 deposito personale e ricevi la tua carta WeFi gratuitamente! 
+                    Un reward esclusivo per i primi GOAT della piattaforma.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Rank Progress to WeFi */}
+            <div className="space-y-6">
+              <div className="glass rounded-xl p-8">
+                <h3 className="text-2xl font-bold text-white mb-8 text-center">Come Ottenere la Carta WeFi</h3>
+                
+                <div className="space-y-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-10 h-10 bg-gradient-to-r from-gray-400 to-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold">0</span>
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Inizia come Nuovo</h4>
+                      <p className="text-gray-400">
+                        Registrati sulla piattaforma e inizia il tuo percorso GOAT.
+                      </p>
+                      <div className="text-sm text-gray-500 mt-1">Target: $0 - $5,000</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-4">
+                    <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Trophy className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Raggiungi Rank Pulcini</h4>
+                      <p className="text-gray-400">
+                        Accumula $5,000 - $10,000 di network deposits + $1,000 deposito personale minimo.
+                      </p>
+                      <div className="text-sm text-green-400 mt-1 font-semibold">🎁 Reward: Carta WeFi Gratuita!</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Requisiti: Network $5K-$10K + Personale $1K
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-4">
+                    <div className="w-10 h-10 bg-gradient-to-r from-goat-gold to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <CreditCard className="w-5 h-5 text-black" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Ricevi la Tua Carta</h4>
+                      <p className="text-gray-400">
+                        Una volta raggiunto il rank, riceverai automaticamente la tua carta WeFi decentralizzata.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-4">
+                    <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <CheckCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Goditi i Vantaggi</h4>
+                      <p className="text-gray-400">
+                        Usa la tua carta per accedere a funzionalità premium e vantaggi esclusivi.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Supported Networks */}
+              <div className="glass rounded-xl p-6">
+                <h4 className="text-lg font-bold text-white mb-4 text-center">Reti Supportate dalla Carta WeFi</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-3 p-3 bg-black/30 rounded-lg">
+                    <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                      <span className="text-black font-bold text-sm">BNB</span>
+                    </div>
+                    <span className="text-white font-medium">Binance Smart Chain</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3 p-3 bg-black/30 rounded-lg">
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">ETH</span>
+                    </div>
+                    <span className="text-white font-medium">Ethereum</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3 p-3 bg-black/30 rounded-lg">
+                    <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">TRX</span>
+                    </div>
+                    <span className="text-white font-medium">Tron</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3 p-3 bg-black/30 rounded-lg">
+                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">+</span>
+                    </div>
+                    <span className="text-white font-medium">Altre Reti</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Info */}
+          <div className="mt-12 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-2 border-cyan-500/30 rounded-xl p-8 text-center">
+            <Trophy className="w-12 h-12 text-goat-gold mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-white mb-4">Disclaimer Carta WeFi</h3>
+            <p className="text-gray-300 text-lg max-w-4xl mx-auto">
+              La <span className="text-goat-gold font-bold">carta WeFi</span> viene assegnata automaticamente come reward 
+              al raggiungimento del <span className="text-cyan-500 font-bold">rank Pulcini</span> (network deposits tra $5,000 e $10,000 + 
+              deposito personale di $1,000). Questa carta decentralizzata ti darà accesso a funzionalità premium e supporta le principali blockchain. 
+              È un reward esclusivo per riconoscere il tuo impegno nella piattaforma GOAT.
+            </p>
           </div>
         </div>
       </section>
