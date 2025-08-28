@@ -14,74 +14,78 @@ import {
   Download
 } from 'lucide-react';
 import { formatCurrency } from '../utils/platformUtils';
+import { goatApi } from '../api/goat';
+import { walletApi } from '../api/wallet';
 
 const Wallet = () => {
   const { 
     isConnected, 
     account, 
     balance, 
+    usdtBalance,
     chainId, 
     connectWallet, 
-    disconnectWallet 
+    disconnectWallet,
+    getUSDTBalance,
+    provider,
+    currentNetwork
   } = useWallet();
   
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [walletStats, setWalletStats] = useState({
-    totalDeposits: 5500,
-    totalEarnings: 1275,
-    availableBalance: 1275,
-    pendingReturns: 450,
+    totalDeposits: 0,
+    totalEarnings: 0,
+    availableBalance: 0,
+    pendingReturns: 0,
     totalWithdrawn: 0
   });
 
-  const [transactions, setTransactions] = useState([
-    {
-      id: 1,
-      type: 'deposit',
-      amount: 1000,
-      hash: '0x1234...abcd',
-      timestamp: '2024-01-15T10:30:00Z',
-      status: 'confirmed',
-      fee: 0.005
-    },
-    {
-      id: 2,
-      type: 'earning',
-      amount: 150,
-      hash: '0x5678...efgh',
-      timestamp: '2024-01-14T15:45:00Z',
-      status: 'confirmed',
-      fee: 0
-    },
-    {
-      id: 3,
-      type: 'referral_bonus',
-      amount: 75,
-      hash: '0x9abc...ijkl',
-      timestamp: '2024-01-12T09:20:00Z',
-      status: 'confirmed',
-      fee: 0
-    },
-    {
-      id: 4,
-      type: 'deposit',
-      amount: 2500,
-      hash: '0xdef0...mnop',
-      timestamp: '2024-01-10T14:15:00Z',
-      status: 'confirmed',
-      fee: 0.012
-    },
-    {
-      id: 5,
-      type: 'earning',
-      amount: 300,
-      hash: '0x1111...qrst',
-      timestamp: '2024-01-08T11:00:00Z',
-      status: 'pending',
-      fee: 0
-    }
-  ]);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load wallet data when connected
+  useEffect(() => {
+    const loadWalletData = async () => {
+      if (!isConnected || !account) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log('[DEBUG] Wallet: Loading data for account:', account);
+        setLoading(true);
+
+        // Get dashboard data which includes wallet info
+        const dashboardResponse = await goatApi.getUserDashboardData(account);
+        
+        if (dashboardResponse.success && dashboardResponse.data) {
+          const { deposits, earnings } = dashboardResponse.data;
+          
+          setWalletStats({
+            totalDeposits: deposits.totalDeposits || 0,
+            totalEarnings: earnings.accumulated || 0,
+            availableBalance: earnings.accumulated || 0,
+            pendingReturns: earnings.pending || 0,
+            totalWithdrawn: earnings.totalWithdrawn || 0
+          });
+        }
+
+        // Get transaction history (using mock for now since API doesn't exist yet)
+        const transactionsResponse = await walletApi.getTransactions(account);
+        if (transactionsResponse.success) {
+          setTransactions(transactionsResponse.transactions || []);
+        }
+
+      } catch (error) {
+        console.error('[DEBUG] Wallet: Error loading wallet data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadWalletData();
+  }, [isConnected, account]);
 
   const copyAddress = async () => {
     if (account) {
@@ -96,11 +100,40 @@ const Wallet = () => {
   };
 
   const refreshBalance = async () => {
+    if (!isConnected || !account) return;
+    
     setIsRefreshing(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      console.log('[DEBUG] Wallet: Refreshing balance...');
+      
+      // Refresh native and USDT balances
+      if (provider && currentNetwork) {
+        const nativeBalance = await provider.getBalance(account);
+        console.log('[DEBUG] Wallet: Native balance refreshed:', nativeBalance.toString());
+        
+        const usdtBal = await getUSDTBalance(account, currentNetwork);
+        console.log('[DEBUG] Wallet: USDT balance refreshed:', usdtBal);
+      }
+      
+      // Reload dashboard data
+      const dashboardResponse = await goatApi.getUserDashboardData(account);
+      
+      if (dashboardResponse.success && dashboardResponse.data) {
+        const { deposits, earnings } = dashboardResponse.data;
+        
+        setWalletStats(prev => ({
+          ...prev,
+          totalDeposits: deposits.totalDeposits || 0,
+          totalEarnings: earnings.accumulated || 0,
+          availableBalance: earnings.accumulated || 0,
+          pendingReturns: earnings.pending || 0
+        }));
+      }
+    } catch (error) {
+      console.error('[DEBUG] Wallet: Error refreshing balance:', error);
+    } finally {
       setIsRefreshing(false);
-    }, 2000);
+    }
   };
 
   const getTransactionIcon = (type) => {
@@ -188,6 +221,17 @@ const Wallet = () => {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-goat-gold mx-auto mb-4"></div>
+          <h2 className="text-xl text-gray-300">Loading wallet data...</h2>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
@@ -237,9 +281,16 @@ const Wallet = () => {
                 <span className="text-white">{getNetworkName(chainId)}</span>
               </div>
 
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">Native Balance</label>
-                <span className="text-2xl font-bold text-goat-gold">{parseFloat(balance).toFixed(4)} ETH</span>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Native Balance</label>
+                  <span className="text-2xl font-bold text-goat-gold">{parseFloat(balance).toFixed(4)} ETH</span>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">USDT Balance</label>
+                  <span className="text-2xl font-bold text-green-400">{parseFloat(usdtBalance || 0).toFixed(2)} USDT</span>
+                  <div className="text-xs text-gray-500 mt-1">Available for deposits</div>
+                </div>
               </div>
             </div>
 

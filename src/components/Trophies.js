@@ -40,51 +40,25 @@ const Trophies = () => {
       try {
         setLoading(true);
         
-        // Use new GOAT API to get user position data
-        const positionResponse = await goatApi.getUserPosition(account);
-
-        if (positionResponse.success && positionResponse.position) {
-          const { position } = positionResponse;
-          
-          const stats = {
-            personalDeposit: position.userStats.personalDeposit,
-            firstLineRevenue: position.userStats.firstLineRevenue,
-            teamRevenue: position.userStats.teamRevenue,
-            totalReferrals: 0, // Will be enhanced later
-            teamStructure: {}
-          };
-
-          setUserStats(stats);
-          setUserLevel(position);
-        } else {
-          // Fallback to default values
-          const defaultStats = {
-            personalDeposit: 0,
-            firstLineRevenue: 0,
-            teamRevenue: 0,
-            totalReferrals: 0,
-            teamStructure: {}
-          };
-          
-          setUserStats(defaultStats);
-          
-          // Set default level (Cliente)
-          const defaultLevel = {
-            current: {
-              level_id: 0,
-              name: 'Cliente',
-              description: 'Livello base - può fare massimo x3 del capitale proprio',
-              network_bonus_rate: 0.1000,
-              max_multiplier: 3.0
-            },
-            next: null,
-            progress: 0,
-            isMaxLevel: false,
-            userStats: defaultStats
-          };
-          
-          setUserLevel(defaultLevel);
+        // Get user position from dashboard API (more comprehensive)
+        const dashboardResponse = await goatApi.getUserDashboardData(account);
+        if (!dashboardResponse.success || !dashboardResponse.data) {
+          throw new Error('Failed to fetch user position data');
         }
+        
+        // Extract data from dashboard response
+        const { position, deposits, network } = dashboardResponse.data;
+        
+        const stats = {
+          personalDeposit: deposits.totalDeposits || 0,
+          firstLineRevenue: network.directReferralRevenue || 0,
+          teamRevenue: network.teamRevenue || 0,
+          totalReferrals: network.directReferrals || 0,
+          teamStructure: {}
+        };
+
+        setUserStats(stats);
+        setUserLevel(position);
 
       } catch (error) {
         console.error('[DEBUG] Trophies: Error loading user data:', error);
@@ -199,7 +173,7 @@ const Trophies = () => {
                 <div className="text-center p-4 bg-black/20 rounded-lg">
                   <TrendingUp className="w-8 h-8 text-purple-400 mx-auto mb-2" />
                   <div className="text-lg font-bold text-white">
-                    {userLevel.current.networkBonus}%
+                    {userLevel?.current?.networkBonus || 0}%
                   </div>
                   <div className="text-sm text-gray-400">Network Bonus</div>
                 </div>
@@ -207,31 +181,31 @@ const Trophies = () => {
                 <div className="text-center p-4 bg-black/20 rounded-lg">
                   <Target className="w-8 h-8 text-orange-400 mx-auto mb-2" />
                   <div className="text-lg font-bold text-white">
-                    {userLevel.current.maxMultiplier}x
+                    {userLevel?.current?.maxMultiplier || 0}x
                   </div>
                   <div className="text-sm text-gray-400">Max Multiplier</div>
                 </div>
               </div>
 
               {/* Progress to Next Level */}
-              {!userLevel.isMaxLevel && (
+              {!userLevel?.isMaxLevel && userLevel?.next && (
                 <div className="mt-6 p-4 bg-gradient-to-r from-goat-gold/10 to-orange-500/10 rounded-lg border border-goat-gold/30">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-goat-gold">
-                      Progress to {userLevel.next.name}
+                      Progress to {userLevel?.next?.name || 'Next Level'}
                     </h3>
                     <span className="text-goat-gold font-bold">
-                      {Math.round(userLevel.progress.overall)}%
+                      {Math.round(userLevel?.progress?.overall || 0)}%
                     </span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-3 mb-3">
                     <div 
                       className="bg-gradient-to-r from-goat-gold to-orange-500 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${userLevel.progress.overall}%` }}
+                      style={{ width: `${userLevel?.progress?.overall || 0}%` }}
                     ></div>
                   </div>
                   <div className="text-sm text-gray-300">
-                    {userLevel.next.requirements}
+                    {userLevel?.next?.requirements || 'Complete current level requirements'}
                   </div>
                 </div>
               )}

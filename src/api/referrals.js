@@ -18,8 +18,27 @@ export const referralsApi = {
     getReferralStats: async (walletAddress) => {
         try {
             console.log('[DEBUG] ReferralAPI: Getting stats for address:', walletAddress);
-            // Mock data for now
-            const mockResponse = {
+            
+            // Use dashboard API to get referral data
+            const dashboardResponse = await require('./goat').goatApi.getUserDashboardData(walletAddress);
+            
+            if (dashboardResponse.success && dashboardResponse.data) {
+                const { network } = dashboardResponse.data;
+                
+                return {
+                    success: true,
+                    stats: {
+                        totalReferrals: network.directReferrals || 0,
+                        activeReferrals: network.directReferrals || 0,
+                        totalEarnings: network.referralEarnings || 0,
+                        monthlyEarnings: network.monthlyReferralEarnings || 0,
+                        referralBonus: network.networkBonus || 0
+                    }
+                };
+            }
+
+            // Return empty stats if no data
+            return {
                 success: true,
                 stats: {
                     totalReferrals: 0,
@@ -29,8 +48,6 @@ export const referralsApi = {
                     referralBonus: 0
                 }
             };
-            console.log('[DEBUG] ReferralAPI: Mock stats response:', mockResponse);
-            return mockResponse;
         } catch (error) {
             console.error('[DEBUG] ReferralAPI: Get referral stats error:', error);
             throw error;

@@ -18,7 +18,8 @@ import {
   formatCurrency,
   formatPercentage 
 } from '../utils/platformUtils';
-import { goatApi } from '../api';
+import { goatApi } from '../api/goat';
+import { referralsApi } from '../api/referrals';
 
 const Referrals = () => {
   const { isConnected, account } = useWallet();
@@ -33,60 +34,76 @@ const Referrals = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [networkTree, setNetworkTree] = useState([
-    { 
-      id: 1, 
-      address: '0xAb5...123', 
-      deposit: 2500, 
-      returnRate: 12, 
-      earnings: 300, 
-      level: 1,
-      status: 'active',
-      joinDate: '2024-01-10'
-    },
-    { 
-      id: 2, 
-      address: '0xCd7...456', 
-      deposit: 800, 
-      returnRate: 10, 
-      earnings: 80, 
-      level: 1,
-      status: 'active',
-      joinDate: '2024-01-12'
-    },
-    { 
-      id: 3, 
-      address: '0xEf9...789', 
-      deposit: 150, 
-      returnRate: 8, 
-      earnings: 12, 
-      level: 1,
-      status: 'active',
-      joinDate: '2024-01-15'
-    },
-    { 
-      id: 4, 
-      address: '0x123...abc', 
-      deposit: 5000, 
-      returnRate: 15, 
-      earnings: 750, 
-      level: 2,
-      status: 'active',
-      joinDate: '2024-01-08'
-    }
-  ]);
-
-  const [bonusCalculations, setBonusCalculations] = useState([
-    { referral: '0xAb5...123', yourRate: 15, theirRate: 12, bonus: 3, earnings: 75 },
-    { referral: '0xCd7...456', yourRate: 15, theirRate: 10, bonus: 5, earnings: 40 },
-    { referral: '0xEf9...789', yourRate: 15, theirRate: 8, bonus: 7, earnings: 10.5 }
-  ]);
+  const [networkTree, setNetworkTree] = useState([]);
+  const [bonusCalculations, setBonusCalculations] = useState([]);
 
   useEffect(() => {
     if (isConnected && account) {
       setReferralCode(generateReferralCode(account));
     }
+  }, [isConnected, account]);
+
+  // Load referral data when connected
+  useEffect(() => {
+    const loadReferralData = async () => {
+      if (!isConnected || !account) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log('[DEBUG] Referrals: Loading data for account:', account);
+        setLoading(true);
+        setError(null);
+
+        // Get dashboard data which includes network info
+        const dashboardResponse = await goatApi.getUserDashboardData(account);
+        
+        if (dashboardResponse.success && dashboardResponse.data) {
+          const { network } = dashboardResponse.data;
+          
+          // Update referral stats from dashboard data
+          setReferralStats({
+            totalReferrals: network.directReferrals || 0,
+            activeReferrals: network.directReferrals || 0,
+            totalEarnings: network.referralEarnings || 0,
+            monthlyEarnings: network.monthlyReferralEarnings || 0
+          });
+          
+          // Create network tree from referral data (if available)
+          if (network.referrals && network.referrals.length > 0) {
+            const networkData = network.referrals.map((referral, index) => ({
+              id: index + 1,
+              address: referral.address || `${referral.address?.slice(0, 6)}...${referral.address?.slice(-3)}`,
+              deposit: referral.totalDeposits || 0,
+              returnRate: referral.returnRate || 0,
+              earnings: referral.earnings || 0,
+              level: 1, // Default to level 1 for now
+              status: referral.active ? 'active' : 'inactive',
+              joinDate: referral.joinDate || new Date().toISOString().split('T')[0]
+            }));
+            setNetworkTree(networkData);
+          }
+        }
+
+        // Get referral stats from referrals API
+        const referralStatsResponse = await referralsApi.getReferralStats(account);
+        if (referralStatsResponse.success) {
+          setReferralStats(prev => ({
+            ...prev,
+            ...referralStatsResponse.stats
+          }));
+        }
+
+      } catch (error) {
+        console.error('[DEBUG] Referrals: Error loading referral data:', error);
+        setError(error.message || 'Failed to load referral data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadReferralData();
   }, [isConnected, account]);
 
   const copyReferralCode = async () => {
@@ -121,6 +138,35 @@ const Referrals = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-300 mb-4">Connect Your Wallet</h2>
           <p className="text-gray-400">Please connect your wallet to view your referral network</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-goat-gold mx-auto mb-4"></div>
+          <h2 className="text-xl text-gray-300">Loading referral data...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">⚠️</div>
+          <h2 className="text-xl text-gray-300 mb-2">Error loading referrals</h2>
+          <p className="text-gray-400 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-goat-gold text-black rounded-lg hover:bg-opacity-80"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -249,26 +295,33 @@ const Referrals = () => {
             <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Bonus Calculator</h2>
             
             <div className="space-y-4">
-              {bonusCalculations.map((calc, index) => (
-                <div key={index} className="p-4 bg-black/20 rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-300 font-medium">{calc.referral}</span>
-                    <span className="text-goat-gold font-bold">{formatCurrency(calc.earnings)}</span>
+              {bonusCalculations.length > 0 ? (
+                bonusCalculations.map((calc, index) => (
+                  <div key={index} className="p-4 bg-black/20 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-gray-300 font-medium">{calc.referral}</span>
+                      <span className="text-goat-gold font-bold">{formatCurrency(calc.earnings)}</span>
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      Your Rate: {formatPercentage(calc.yourRate)} | 
+                      Their Rate: {formatPercentage(calc.theirRate)} | 
+                      Bonus: {formatPercentage(calc.bonus)}
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-400">
-                    Your Rate: {formatPercentage(calc.yourRate)} | 
-                    Their Rate: {formatPercentage(calc.theirRate)} | 
-                    Bonus: {formatPercentage(calc.bonus)}
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 mb-2">No referral bonuses yet</div>
+                  <div className="text-sm text-gray-500">Start inviting friends to see your bonus calculations</div>
                 </div>
-              ))}
+              )}
             </div>
 
             <div className="mt-6 p-4 bg-gradient-to-r from-goat-gold/10 to-orange-500/10 rounded-lg border border-goat-gold/20">
               <div className="flex items-center justify-between">
                 <span className="text-white font-medium">Total Monthly Bonus:</span>
                 <span className="text-2xl font-bold text-goat-gold">
-                  {formatCurrency(bonusCalculations.reduce((sum, calc) => sum + calc.earnings, 0))}
+                  {formatCurrency(referralStats.monthlyEarnings)}
                 </span>
               </div>
             </div>
@@ -292,31 +345,40 @@ const Referrals = () => {
                 </tr>
               </thead>
               <tbody>
-                {networkTree.map((referral) => (
-                  <tr key={referral.id} className="border-b border-gray-700/50">
-                    <td className="py-4">
-                      <div className="flex items-center">
-                        <div className={`w-3 h-3 rounded-full mr-3 ${
-                          referral.level === 1 ? 'bg-blue-400' : 'bg-purple-400'
-                        }`}></div>
-                        <span className="text-white font-mono">{referral.address}</span>
-                      </div>
+                {networkTree.length > 0 ? (
+                  networkTree.map((referral) => (
+                    <tr key={referral.id} className="border-b border-gray-700/50">
+                      <td className="py-4">
+                        <div className="flex items-center">
+                          <div className={`w-3 h-3 rounded-full mr-3 ${
+                            referral.level === 1 ? 'bg-blue-400' : 'bg-purple-400'
+                          }`}></div>
+                          <span className="text-white font-mono">{referral.address}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 text-white">{formatCurrency(referral.deposit)}</td>
+                      <td className="py-4 text-goat-gold">{formatPercentage(referral.returnRate)}</td>
+                      <td className="py-4 text-green-400">{formatCurrency(referral.earnings)}</td>
+                      <td className="py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          referral.status === 'active' 
+                            ? 'bg-green-500/20 text-green-400' 
+                            : 'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {referral.status}
+                        </span>
+                      </td>
+                      <td className="py-4 text-gray-400">{referral.joinDate}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="py-12 text-center">
+                      <div className="text-gray-400 mb-2">No referrals yet</div>
+                      <div className="text-sm text-gray-500">Share your referral link to start building your network</div>
                     </td>
-                    <td className="py-4 text-white">{formatCurrency(referral.deposit)}</td>
-                    <td className="py-4 text-goat-gold">{formatPercentage(referral.returnRate)}</td>
-                    <td className="py-4 text-green-400">{formatCurrency(referral.earnings)}</td>
-                    <td className="py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        referral.status === 'active' 
-                          ? 'bg-green-500/20 text-green-400' 
-                          : 'bg-gray-500/20 text-gray-400'
-                      }`}>
-                        {referral.status}
-                      </span>
-                    </td>
-                    <td className="py-4 text-gray-400">{referral.joinDate}</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

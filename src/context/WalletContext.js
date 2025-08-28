@@ -611,8 +611,8 @@ export const WalletProvider = ({ children }) => {
       const usdtContract = new ethers.Contract(usdtAddress, USDT_ABI, provider);
       const balance = await usdtContract.balanceOf(address);
       
-      // USDT has 6 decimals
-      return ethers.utils.formatUnits(balance, 6);
+      // Token has 18 decimals (not standard USDT 6)
+      return ethers.utils.formatUnits(balance, 18);
     } catch (error) {
       console.error('[DEBUG] WalletContext: Error getting USDT balance:', error);
       return '0';
@@ -633,8 +633,8 @@ export const WalletProvider = ({ children }) => {
       // Create USDT contract instance
       const usdtContract = new ethers.Contract(usdtAddress, USDT_ABI, signer);
       
-      // Convert amount to USDT units (6 decimals)
-      const usdtAmount = ethers.utils.parseUnits(amount.toString(), 6);
+      // Convert amount to token units (18 decimals)
+      const usdtAmount = ethers.utils.parseUnits(amount.toString(), 18);
       console.log('[DEBUG] WalletContext: USDT amount (with decimals):', usdtAmount.toString());
       
       // Send USDT transfer transaction
@@ -702,6 +702,8 @@ export const WalletProvider = ({ children }) => {
       registrationCheckCache.current.clear();
     };
   }, [connectWalletConnect]);
+
+
 
   const value = {
     account,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWallet } from '../context/WalletContext';
+import { ethers } from 'ethers';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -22,6 +23,28 @@ import { goatApi } from '../api/goat';
 const Deposit = () => {
   const { isConnected, account, sendTransaction, usdtBalance, getUSDTBalance } = useWallet();
   const [depositAmount, setDepositAmount] = useState('');
+  const [localUsdtBalance, setLocalUsdtBalance] = useState(usdtBalance || '0');
+
+  // Update local balance when context changes
+  useEffect(() => {
+    setLocalUsdtBalance(usdtBalance || '0');
+  }, [usdtBalance]);
+
+  // Force refresh balance on mount if connected
+  useEffect(() => {
+    const refreshBalance = async () => {
+      if (isConnected && account && getUSDTBalance) {
+        try {
+          const freshBalance = await getUSDTBalance(account);
+          setLocalUsdtBalance(freshBalance || '0');
+        } catch (error) {
+          console.error('Error refreshing USDT balance:', error);
+        }
+      }
+    };
+
+    refreshBalance();
+  }, [isConnected, account, getUSDTBalance]);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState(null);
@@ -44,11 +67,15 @@ const Deposit = () => {
   useEffect(() => {
     const loadTargetWallet = async () => {
       try {
-        // For now, use a fallback target wallet
+        // For now, use a fallback target wallet with proper checksum
         // In production, this would come from platform settings
         const fallbackTargetWallet = '0x742d35Cc6634C0532925a3b8D1A88C5f5c7FA98a'; // Example BSC address
-        setTargetWallet(fallbackTargetWallet);
-        console.log('[DEBUG] Deposit: Using fallback target wallet:', fallbackTargetWallet);
+        
+        // Fix checksum using ethers
+        const checksummedAddress = ethers.utils.getAddress(fallbackTargetWallet);
+        
+        setTargetWallet(checksummedAddress);
+        console.log('[DEBUG] Deposit: Using target wallet with checksum:', checksummedAddress);
       } catch (error) {
         console.error('[DEBUG] Deposit: Error loading target wallet:', error);
       }
@@ -88,7 +115,7 @@ const Deposit = () => {
     }
 
     // Check USDT balance
-    const usdtBal = parseFloat(usdtBalance || '0');
+    const usdtBal = parseFloat(localUsdtBalance || '0');
     const depositAmt = parseFloat(depositAmount);
     
     if (usdtBal < depositAmt) {
@@ -203,7 +230,7 @@ const Deposit = () => {
                   Amount (USD)
                 </label>
                 <span className="text-sm text-gray-400">
-                  Balance: <span className="text-goat-gold font-medium">{formatCurrency(parseFloat(usdtBalance || '0'))} USDT</span>
+                  Balance: <span className="text-goat-gold font-medium">{formatCurrency(parseFloat(localUsdtBalance || '0'))} USDT</span>
                 </span>
               </div>
               <div className="relative">

@@ -20,14 +20,47 @@ export const trophiesApi = {
     getUserTrophies: async (walletAddress) => {
         try {
             console.log('[DEBUG] TrophyAPI: Getting trophies for address:', walletAddress);
-            // Mock data for now
-            const mockResponse = {
+            
+            // Use dashboard API to get position data
+            const dashboardResponse = await require('./goat').goatApi.getUserDashboardData(walletAddress);
+            
+            if (dashboardResponse.success && dashboardResponse.data) {
+                const { position, deposits } = dashboardResponse.data;
+                
+                const currentLevel = position.current.level_id || 1;
+                
+                return {
+                    success: true,
+                    trophies: [
+                        {
+                            id: currentLevel,
+                            level: currentLevel,
+                            name: position.current.name,
+                            description: position.current.description,
+                            icon: '🏆',
+                            earned: true,
+                            earnedAt: new Date().toISOString(),
+                            progress: 100
+                        }
+                    ],
+                    currentLevel: currentLevel,
+                    nextTrophy: position.next ? {
+                        level: position.next.level_id,
+                        name: position.next.name,
+                        requiredDeposits: position.next.requirements || 0,
+                        progress: position.progress || 0
+                    } : null
+                };
+            }
+
+            // Return basic response if no data
+            return {
                 success: true,
                 trophies: [
                     {
                         id: 1,
                         level: 1,
-                        name: 'Pulcini',
+                        name: 'Cliente',
                         description: 'First step in your GOAT journey',
                         icon: '🥇',
                         earned: true,
@@ -38,13 +71,11 @@ export const trophiesApi = {
                 currentLevel: 1,
                 nextTrophy: {
                     level: 2,
-                    name: 'Esordienti',
-                    requiredDeposits: 2500,
+                    name: 'Position 1',
+                    requiredDeposits: 100,
                     progress: 0
                 }
             };
-            console.log('[DEBUG] TrophyAPI: Mock trophies response:', mockResponse);
-            return mockResponse;
         } catch (error) {
             console.error('[DEBUG] TrophyAPI: Get user trophies error:', error);
             throw error;

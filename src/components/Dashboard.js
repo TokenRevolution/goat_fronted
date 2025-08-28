@@ -17,11 +17,6 @@ import {
   Activity
 } from 'lucide-react';
 import { 
-  calculateReturnRate,
-  calculateDailyReturn,
-  calculateUserLevel,
-  calculateCashoutLimits,
-  calculateNetworkBonuses,
   calculatePersonalCapitalReturns,
   calculateDailyNetworkEarnings,
   getTimeUntilCashout,
@@ -29,12 +24,9 @@ import {
   formatCurrency,
   formatPercentage,
   getLevelColor,
-  getLevelBadgeColor,
-  POSITION_LEVELS
+  getLevelBadgeColor
 } from '../utils/goatBusinessLogic';
-import { goatApi as oldGoatApi } from '../api';
 import { goatApi } from '../api/goat';
-import { makeApiRequest, cancelUserRequests } from '../utils/ApiManager';
 
 const Dashboard = () => {
   console.log('[DEBUG] Dashboard: Component mounting...');
@@ -67,175 +59,101 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Refs for managing API calls and preventing race conditions
-  const abortControllerRef = useRef(null);
-  const fetchTimeoutRef = useRef(null);
-  const lastFetchParams = useRef({ isConnected: null, account: null });
-
-  // Serialized fetch function using Global API Manager to prevent rate limiting
+  // Simplified fetch function for dashboard data
   const fetchDashboardData = useCallback(async (isConnected, account) => {
-    // Cancel any existing timeout
-    if (fetchTimeoutRef.current) {
-      clearTimeout(fetchTimeoutRef.current);
-    }
-
-    // Check if this is the same as the last fetch to avoid duplicates
-    const paramsChanged = lastFetchParams.current.isConnected !== isConnected || 
-                         lastFetchParams.current.account !== account;
-    
-    if (!paramsChanged) {
-      console.log('[DEBUG] Dashboard: Skipping duplicate fetch request');
-      return;
-    }
-
-    lastFetchParams.current = { isConnected, account };
-
-    if (!isConnected) {
-      console.log('[DEBUG] Dashboard: Not connected, setting loading to false');
+    if (!isConnected || !account) {
+      console.log('[DEBUG] Dashboard: Not connected or no account, setting loading to false');
       setLoading(false);
       return;
     }
 
-    if (!account) {
-      console.log('[DEBUG] Dashboard: No account available, setting loading to false');
-      setLoading(false);
-      return;
-    }
+    try {
+      console.log('[DEBUG] Dashboard: Fetching dashboard data for account:', account);
+      setLoading(true);
+      setError(null);
 
-    // Cancel any existing requests for this user before starting new ones
-    cancelUserRequests(account);
+      // Fetch data from GOAT API
+      const dashboardResponse = await goatApi.getUserDashboardData(account);
 
-    // Debounce the actual API call by 500ms
-    fetchTimeoutRef.current = setTimeout(async () => {
-      try {
-        console.log('[DEBUG] Dashboard: Starting serialized fetch for account:', account);
-        setLoading(true);
-        setError(null);
-
-        // Single API call to get all dashboard data using the new GOAT API
-        console.log('[DEBUG] Dashboard: Fetching comprehensive dashboard data...');
-        const dashboardResponse = await makeApiRequest(
-          `dashboard_${account}`,
-          () => goatApi.getUserDashboardData(account),
-          1 // Highest priority
-        );
-
-        console.log('[DEBUG] Dashboard: Dashboard API response received successfully');
-
-        if (dashboardResponse.success && dashboardResponse.data) {
-          const { position, deposits, earnings, network } = dashboardResponse.data;
-
-          // Calculate DUAL CREDIT SYSTEM earnings
-          const personalCapitalReturns = calculatePersonalCapitalReturns(deposits.totalDeposits, 30);
-          const dailyNetworkEarnings = calculateDailyNetworkEarnings(position.current, network.teamRevenue, network.sameLevelRevenue || 0);
-          const cashoutCountdown = getTimeUntilCashout();
-          const networkCreditCountdown = getTimeUntilDailyCredit();
-
-          // Update user stats with GOAT API data
-          setUserStats(prevStats => ({
-            ...prevStats,
-            totalDeposits: deposits.totalDeposits,
-            personalDeposits: deposits.totalDeposits,
-            monthlyEarnings: deposits.monthlyReturn,
-            dailyEarnings: deposits.dailyReturn,
-            accumulatedEarnings: earnings.accumulated,
-            
-            // DUAL CREDIT SYSTEM DATA
-            personalCapitalReturns,
-            dailyNetworkEarnings,
-            cashoutCountdown,
-            networkCreditCountdown,
-            
-            totalReferrals: 0, // Will be calculated from network data
-            networkValue: network.teamRevenue,
-            currentRank: position.current.name,
-            rankLevel: position.current.level_id,
-            nextRankProgress: position.progress,
-            returnRate: deposits.returnRate,
-            returnTier: deposits.returnTier,
-            canEarn: deposits.canEarn,
-            maxCashout: earnings.maxCashout,
-            multiplier: position.current.max_multiplier,
-            networkBonus: position.current.network_bonus_rate * network.teamRevenue,
-            sameLevelBonus: position.current.same_level_bonus_rate * network.teamRevenue,
-            userLevel: position // Store complete level info
-          }));
-
-          // Update network overview
-          setNetworkOverview({
-            directReferrals: 0, // Will be enhanced later
-            indirectReferrals: 0, // Will be enhanced later
-            totalNetworkDeposits: network.teamRevenue,
-            averageDeposit: 0 // Will be calculated later
-          });
-
-          // Create recent activity from earnings
-          if (earnings.recent && earnings.recent.length > 0) {
-            setRecentActivity(earnings.recent.map(earning => ({
-              type: 'daily_return',
-              amount: earning.total_earnings,
-              date: earning.date,
-              status: 'completed',
-              time: '00:00'
-            })));
-          }
-        } else {
-          console.warn('[DEBUG] Dashboard: Invalid dashboard response, using fallback data');
-          // Fallback to default values
-          setUserStats(prevStats => ({
-            ...prevStats,
-            currentRank: 'Cliente',
-            rankLevel: 0,
-            returnRate: 0,
-            returnTier: 'No Return',
-            canEarn: false
-          }));
-        }
-
-        console.log('[DEBUG] Dashboard: Data updated successfully');
-
-      } catch (error) {
-        if (error.message === 'Request cancelled' || error.message === 'All requests cancelled') {
-          console.log('[DEBUG] Dashboard: Request was cancelled');
-          return;
-        }
-
-        console.error('[DEBUG] Dashboard: Error fetching dashboard data:', error);
-        
-        // Check for rate limiting error
-        if (error.message && error.message.includes('Too many requests')) {
-          setError('Loading data... The system is busy, please wait...');
-        } else {
-          setError(error.message || 'Failed to load dashboard data');
-        }
-      } finally {
-        setLoading(false);
+      if (!dashboardResponse.success || !dashboardResponse.data) {
+        throw new Error('Failed to fetch dashboard data');
       }
-    }, 500); // 500ms debounce
+
+      const { position, deposits, earnings, network } = dashboardResponse.data;
+
+      // Calculate DUAL CREDIT SYSTEM earnings
+      const personalCapitalReturns = calculatePersonalCapitalReturns(deposits.totalDeposits, 30);
+      const dailyNetworkEarnings = calculateDailyNetworkEarnings(position.current, network.teamRevenue, network.sameLevelRevenue || 0);
+      const cashoutCountdown = getTimeUntilCashout();
+      const networkCreditCountdown = getTimeUntilDailyCredit();
+
+      // Update user stats with data
+      setUserStats(prevStats => ({
+        ...prevStats,
+        totalDeposits: deposits.totalDeposits,
+        personalDeposits: deposits.totalDeposits,
+        monthlyEarnings: deposits.monthlyReturn,
+        dailyEarnings: deposits.dailyReturn,
+        accumulatedEarnings: earnings.accumulated,
+        
+        // DUAL CREDIT SYSTEM DATA
+        personalCapitalReturns,
+        dailyNetworkEarnings,
+        cashoutCountdown,
+        networkCreditCountdown,
+        
+        totalReferrals: network.directReferrals || 0,
+        networkValue: network.teamRevenue,
+        currentRank: position.current.name,
+        rankLevel: position.current.level_id,
+        nextRankProgress: position.progress,
+        returnRate: deposits.returnRate,
+        returnTier: deposits.returnTier,
+        canEarn: deposits.canEarn,
+        maxCashout: earnings.maxCashout,
+        multiplier: position.current.max_multiplier,
+        networkBonus: (position.current.network_bonus_rate || 0) * network.teamRevenue,
+        sameLevelBonus: (position.current.same_level_bonus_rate || 0) * network.teamRevenue,
+        userLevel: position // Store complete level info
+      }));
+
+      // Update network overview
+      setNetworkOverview({
+        directReferrals: network.directReferrals || 0,
+        indirectReferrals: (network.totalNetworkSize || 0) - (network.directReferrals || 0),
+        totalNetworkDeposits: network.teamRevenue,
+        averageDeposit: network.directReferrals > 0 ? network.teamRevenue / network.directReferrals : 0
+      });
+
+      // Create recent activity from earnings
+      if (earnings.recent && earnings.recent.length > 0) {
+        setRecentActivity(earnings.recent.map(earning => ({
+          type: 'daily_return',
+          amount: earning.total_earnings,
+          date: earning.date,
+          status: 'completed',
+          time: '00:00'
+        })));
+      }
+
+      console.log('[DEBUG] Dashboard: Data updated successfully');
+
+    } catch (error) {
+      console.error('[DEBUG] Dashboard: Error fetching dashboard data:', error);
+      setError(error.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Effect with correct dependencies and cleanup
+  // Effect to load dashboard data when wallet connects
   useEffect(() => {
     console.log('[DEBUG] Dashboard: useEffect triggered - isConnected:', isConnected, 'account:', account);
     
-    fetchDashboardData(isConnected, account);
-
-    // Cleanup function
-    return () => {
-      console.log('[DEBUG] Dashboard: Cleaning up...');
-      
-      // Clear timeout
-      if (fetchTimeoutRef.current) {
-        clearTimeout(fetchTimeoutRef.current);
-        fetchTimeoutRef.current = null;
-      }
-      
-      // Cancel any API requests for this user
-      if (account) {
-        cancelUserRequests(account);
-      }
-    };
-  }, [isConnected, account, fetchDashboardData]); // ✅ Correct dependencies!
+    if (isConnected && account) {
+      fetchDashboardData(isConnected, account);
+    }
+  }, [isConnected, account, fetchDashboardData]);
 
   if (!isConnected) {
     return (

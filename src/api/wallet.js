@@ -29,8 +29,35 @@ export const walletApi = {
     getTransactions: async (walletAddress, page = 1, limit = 10, type = null) => {
         try {
             console.log('[DEBUG] WalletAPI: Getting transactions for address:', walletAddress);
-            // Mock data for now
-            const mockResponse = {
+            
+            // Use dashboard API to get earnings history which includes transaction-like data
+            const dashboardResponse = await require('./goat').goatApi.getUserDashboardData(walletAddress);
+            
+            if (dashboardResponse.success && dashboardResponse.data && dashboardResponse.data.earnings.recent) {
+                const transactions = dashboardResponse.data.earnings.recent.map((earning, index) => ({
+                    id: index + 1,
+                    type: 'daily_return',
+                    amount: earning.total_earnings,
+                    hash: `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 4)}`,
+                    timestamp: earning.date,
+                    status: 'confirmed',
+                    fee: 0
+                }));
+
+                return {
+                    success: true,
+                    transactions: transactions,
+                    pagination: {
+                        page: page,
+                        limit: limit,
+                        total: transactions.length,
+                        pages: Math.ceil(transactions.length / limit)
+                    }
+                };
+            }
+
+            // Return empty if no data
+            return {
                 success: true,
                 transactions: [],
                 pagination: {
@@ -40,8 +67,6 @@ export const walletApi = {
                     pages: 0
                 }
             };
-            console.log('[DEBUG] WalletAPI: Mock transactions response:', mockResponse);
-            return mockResponse;
         } catch (error) {
             console.error('[DEBUG] WalletAPI: Get transactions error:', error);
             throw error;
