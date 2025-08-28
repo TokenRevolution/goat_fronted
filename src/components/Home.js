@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
-import { goatApi } from '../api';
+import { goatApi } from '../api/goat';
 import { Trophy, Users, TrendingUp, Shield, Zap, Star, ArrowRight, Instagram, Heart, MessageCircle, CreditCard, AlertTriangle, CheckCircle, Upload, Gift } from 'lucide-react';
 
 const Home = () => {
@@ -41,14 +41,39 @@ const Home = () => {
     const loadPlatformStats = async () => {
       try {
         console.log('[DEBUG] Home: Loading platform statistics...');
-        const response = await goatApi.deposits.getPlatformStats();
+        const response = await goatApi.getPlatformStats();
         if (response.success) {
-          setPlatformStats(response.stats);
+          setPlatformStats({
+            totalUsers: response.stats.totalUsers || 0,
+            totalDeposits: response.stats.totalDeposits || 0,
+            totalDepositCount: response.stats.activeUsers || 0, // Use active users as deposit count
+            totalTrophiesAwarded: 8, // Static for now (8 position levels)
+            totalReferrals: 0, // Will be enhanced later
+            averageMonthlyReturn: 7.5 // Average of return rates
+          });
           console.log('[DEBUG] Home: Platform stats loaded:', response.stats);
+        } else {
+          // Fallback to default stats
+          setPlatformStats({
+            totalUsers: 0,
+            totalDeposits: 0,
+            totalDepositCount: 0,
+            totalTrophiesAwarded: 8,
+            totalReferrals: 0,
+            averageMonthlyReturn: 7.5
+          });
         }
       } catch (error) {
         console.error('[DEBUG] Home: Error loading platform stats:', error);
-        // Keep default values on error
+        // Set fallback stats
+        setPlatformStats({
+          totalUsers: 0,
+          totalDeposits: 0,
+          totalDepositCount: 0,
+          totalTrophiesAwarded: 8,
+          totalReferrals: 0,
+          averageMonthlyReturn: 7.5
+        });
       } finally {
         setStatsLoading(false);
       }

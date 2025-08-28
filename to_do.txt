@@ -2,11 +2,12 @@
 2) Al raggiungimento dei seguenti livelli si otterrà il conseguente livello di %
     a) fino a 100$ l'utente prende lo 0% dai suoi depositi (non ha rendimento )
     b) da 100$ a 500$ l'utente prende il 5%
-    c) da 500 a 1000 - il 7
-    d) da 1000 a 2500 - l'8%
-    e) da 2500 a 5000 - il 9%
-    f) da 5000 a 10000 - il 10% 
-   Queste % determinano il rendimento del capitale proprio 
+    c) da 500 a 1000 - il 6%
+    d) da 1000 a 2500 - l'7%
+    e) da 2500 a 5000 - il 8%
+    f) da 5000 a 10000 - il 9%
+    g) da 10000 in poi il 10% 
+Queste % determinano il rendimento del capitale proprio del quale sarà possibile fare il cash out 1 volta al mese
 3) Ogni utente in base al proprio deposito e alla propria rete acquisisce dei livelli
     a) Livello Cliente - Deposito personale (qualunque) - nessun fatturato di 1° linea richiesto - nessun fatturato del team richiesto - può fare massimo un x3 del capitale proprio dopo deve fare un deposito - prende il 10% della produzione di tutta la sua linea - a parità di livello di produzione con un altro user della sua line non prende niente - nessun requisito di qualifica
     b) Livello Posizione 1 - Deposito personale (1000) - fatturato prima linea (2500) - fatturato del team (10000) - massimo un x4 del capitale proprio - prende il 15% della produzione di tutta la sua linea (qui si considera la differenza dei bonus produzione con la linea) - a parità di livello di produzione con un altro user della sua linea non prende niente - nessun requisito di qualifica
@@ -17,5 +18,4 @@
     g) Livello Posizione 6 - Deposito personale (10000) - fatturato prima linea (2500) - fatturato del team (5000000) - massimo un x5 del capitale proprio - prende il 40% della produzione di tutta la sua linea (qui si considera la differenza dei bonus produzione con la linea) - a parità di livello di produzione con un altro user della sua linea prende l'14% - due posizoni 5 e una posizione 3 in tre gambe 
     h) Livello Posizione 7 - Deposito personale (10000) - fatturato prima linea (2500) - fatturato del team (15000000) - massimo un x6 del capitale proprio - prende il 45% della produzione di tutta la sua linea (qui si considera la differenza dei bonus produzione con la linea) - a parità di livello di produzione con un altro user della sua linea prende l'15% - due posizioni 6 e una posiione 3 in tre gambe
     i) Livello Posizione 8 - Deposito personale (10000) - fatturato prima linea (2500) - fatturato del team (40000000) - massimo un x6 del capitale proprio - prende il 50% della produzione di tutta la sua linea (qui si considera la differenza dei bonus produzione con la linea) - a parità di livello di produzione con un altro user della sua linea prende l'20% - due posizioni 7 e una posizione 5 in tre gambe
-
-Gli accrediti sono giornalmente alla 00:00 di ogni giorno
+Gli accrediti della rete avvengono giornalmente alla 00:00 di ogni giorno

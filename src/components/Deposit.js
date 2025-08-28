@@ -7,44 +7,48 @@ import {
   AlertCircle, 
   CheckCircle,
   Info,
-  Target,
-  Heart
+  Target
 } from 'lucide-react';
 import { 
-  calculateMonthlyReturn, 
+  calculateReturnRate,
   calculateDailyReturn,
-  validateDeposit, 
-  calculateDonation,
+  calculatePersonalCapitalReturns,
   formatCurrency,
-  formatPercentage 
-} from '../utils/platformUtils';
-import { goatApi } from '../api';
+  formatPercentage,
+  RETURN_RATES
+} from '../utils/goatBusinessLogic';
+import { goatApi } from '../api/goat';
 
 const Deposit = () => {
   const { isConnected, account, sendTransaction, usdtBalance, getUSDTBalance } = useWallet();
   const [depositAmount, setDepositAmount] = useState('');
-  const [isDonationEnabled, setIsDonationEnabled] = useState(false);
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState(null);
   const [validationError, setValidationError] = useState('');
   const [targetWallet, setTargetWallet] = useState(null);
 
-  const returnTiers = [
-    { min: 0, max: 100, basePercentage: 8, maxPercentage: 9, color: 'from-green-400 to-green-600' },
-    { min: 100, max: 500, basePercentage: 10, maxPercentage: 11, color: 'from-blue-400 to-blue-600' },
-    { min: 500, max: 1000, basePercentage: 12, maxPercentage: 13, color: 'from-purple-400 to-purple-600' },
-    { min: 1000, max: Infinity, basePercentage: 15, maxPercentage: 16, color: 'from-goat-gold to-orange-500' }
-  ];
+  // Use GOAT return rates with colors
+  const returnTiersWithColors = RETURN_RATES.map((tier, index) => ({
+    ...tier,
+    color: index === 0 ? 'from-gray-400 to-gray-600' :
+           index === 1 ? 'from-green-400 to-green-600' :
+           index === 2 ? 'from-blue-400 to-blue-600' :
+           index === 3 ? 'from-purple-400 to-purple-600' :
+           index === 4 ? 'from-orange-400 to-orange-600' :
+           index === 5 ? 'from-pink-400 to-pink-600' :
+           'from-goat-gold to-yellow-500'
+  }));
 
   // Load target wallet address on component mount
   useEffect(() => {
     const loadTargetWallet = async () => {
       try {
-        const response = await goatApi.wallet.getTargetAddress();
-        if (response.success) {
-          setTargetWallet(response.targetAddress);
-          console.log('[DEBUG] Deposit: Target wallet loaded:', response.targetAddress);
-        }
+        // For now, use a fallback target wallet
+        // In production, this would come from platform settings
+        const fallbackTargetWallet = '0x742d35Cc6634C0532925a3b8D1A88C5f5c7FA98a'; // Example BSC address
+        setTargetWallet(fallbackTargetWallet);
+        console.log('[DEBUG] Deposit: Using fallback target wallet:', fallbackTargetWallet);
       } catch (error) {
         console.error('[DEBUG] Deposit: Error loading target wallet:', error);
       }
@@ -64,12 +68,19 @@ const Deposit = () => {
   };
 
   const handleDeposit = async () => {
-    // Use API validation instead of utils
-    const validation = goatApi.deposits.validateDepositAmount(parseFloat(depositAmount));
-    if (!validation.isValid) {
-      setValidationError(validation.message);
+    // Basic validation
+    const amount = parseFloat(depositAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setValidationError('Please enter a valid deposit amount');
       return;
     }
+    
+    if (amount < 1) {
+      setValidationError('Minimum deposit amount is $1');
+      return;
+    }
+    
+    setValidationError('');
 
     if (!isConnected) {
       setValidationError('Please connect your wallet first');
@@ -108,13 +119,13 @@ const Deposit = () => {
             token: 'USDT'
           });
 
-          const donationMessage = isDonationEnabled 
-            ? ` (includes ${formatCurrency(donationInfo.donation)} donation)` 
-            : '';
+          const tierMessage = returnInfo.rate > 0 
+            ? ` (${returnInfo.label} tier - ${returnInfo.rate}% monthly)` 
+            : ' (No returns on this amount)';
           
           setTransactionStatus({
             type: 'success',
-            message: `Deposit successful!${donationMessage}`,
+            message: `Deposit successful!${tierMessage}`,
             hash: result.hash,
             depositId: depositResponse.deposit?.id
           });
@@ -129,7 +140,6 @@ const Deposit = () => {
         }
         
         setDepositAmount('');
-        setIsDonationEnabled(false);
       } else {
         setTransactionStatus({
           type: 'error',
@@ -148,15 +158,19 @@ const Deposit = () => {
     }
   };
 
+  // Calculate returns using GOAT business logic
+  const amount = parseFloat(depositAmount) || 0;
+  const returnInfo = calculateReturnRate(amount);
+  const dailyReturnInfo = calculateDailyReturn(amount);
+  const personalCapitalInfo = calculatePersonalCapitalReturns(amount, 30);
+  
   const getCurrentTier = () => {
-    const amount = parseFloat(depositAmount) || 0;
-    return returnTiers.find(tier => amount > tier.min && amount <= tier.max) || returnTiers[0];
+    return returnTiersWithColors.find(tier => 
+      amount >= tier.min && amount < tier.max
+    ) || returnTiersWithColors[returnTiersWithColors.length - 1];
   };
 
   const currentTier = getCurrentTier();
-  const monthlyReturn = calculateMonthlyReturn(parseFloat(depositAmount) || 0, true); // Assume Instagram bonus for display
-  const dailyReturn = calculateDailyReturn(parseFloat(depositAmount) || 0, true); // Assume Instagram bonus for display
-  const donationInfo = calculateDonation(parseFloat(depositAmount) || 0, isDonationEnabled);
 
   if (!isConnected) {
     return (
@@ -212,31 +226,30 @@ const Deposit = () => {
               )}
             </div>
 
-            {/* Donation Option */}
+            {/* Return Tier Information */}
             <div className="mb-6">
-              <label className="flex items-start space-x-3 cursor-pointer p-4 rounded-lg border-2 border-gray-600 hover:border-goat-gold/50 transition-colors duration-200">
-                <input
-                  type="checkbox"
-                  checked={isDonationEnabled}
-                  onChange={(e) => setIsDonationEnabled(e.target.checked)}
-                  className="w-5 h-5 text-goat-gold bg-transparent border-2 border-gray-600 rounded focus:ring-goat-gold focus:ring-2 mt-0.5"
-                />
-                <Heart className={`w-5 h-5 mt-0.5 ${isDonationEnabled ? 'text-red-500' : 'text-gray-400'}`} />
-                <div className="flex-1">
-                  <span className="text-white font-medium">Dona 0.5% allo sviluppo della piattaforma</span>
-                  <p className="text-gray-400 text-sm mt-1">
-                    Supporta il continuo sviluppo e miglioramento di GOAT
-                  </p>
-                  {isDonationEnabled && depositAmount && (
-                    <div className="mt-2 p-2 bg-goat-gold/10 rounded border border-goat-gold/20">
-                      <p className="text-goat-gold text-sm">
-                        💝 Donazione: {formatCurrency(donationInfo.donation)} | 
-                        Deposito netto: {formatCurrency(donationInfo.netDeposit)}
-                      </p>
-                    </div>
-                  )}
+              <div className="p-4 rounded-lg border-2 border-gray-600 bg-white/5">
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className={`w-4 h-4 rounded-full bg-gradient-to-r ${currentTier.color}`}></div>
+                  <span className="text-white font-medium">
+                    {returnInfo.label} Tier ({returnInfo.rate}% Monthly)
+                  </span>
                 </div>
-              </label>
+                <p className="text-gray-400 text-sm mb-2">
+                  {returnInfo.rate > 0 
+                    ? `Your deposit will earn ${returnInfo.rate}% monthly returns through monthly cashouts`
+                    : 'Deposits below $100 do not earn returns. Consider depositing more to start earning.'
+                  }
+                </p>
+                {amount >= 100 && (
+                  <div className="mt-2 p-2 bg-green-500/10 rounded border border-green-500/20">
+                    <p className="text-green-400 text-sm">
+                      💰 Monthly Accumulated: {formatCurrency(personalCapitalInfo.accumulatedAmount)} | 
+                      Daily Rate: {formatCurrency(personalCapitalInfo.dailyAmount)}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <button
@@ -306,98 +319,72 @@ const Deposit = () => {
                     <Target className="w-8 h-8 text-white" />
                   </div>
                   <p className="text-2xl font-bold text-goat-gold">
-                    {formatPercentage(monthlyReturn.finalPercentage)} Monthly Return
+                    {returnInfo.rate}% Monthly Return
                   </p>
                   <p className="text-gray-400 text-sm">
                     ${currentTier.min} - ${currentTier.max === Infinity ? '∞' : currentTier.max}
                   </p>
-                  {monthlyReturn.instagramBonus > 0 && (
-                    <p className="text-pink-500 text-sm mt-1">
-                      Include +{monthlyReturn.instagramBonus}% Instagram Bonus
+                  {returnInfo.rate > 0 && (
+                    <p className="text-green-500 text-sm mt-1">
+                      ✅ Qualified for monthly cashouts
                     </p>
                   )}
                 </div>
 
-                {/* Monthly Return */}
+                {/* Monthly Accumulation */}
                 <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Monthly Return:</span>
+                    <span className="text-gray-300">Monthly Accumulation:</span>
                     <span className="text-2xl font-bold text-green-400">
-                      {formatCurrency(monthlyReturn.return)}
+                      {formatCurrency(personalCapitalInfo.accumulatedAmount)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-gray-400">Return Rate:</span>
+                    <span className="text-gray-400">Monthly Rate:</span>
                     <span className="text-lg font-semibold text-green-400">
-                      {formatPercentage(monthlyReturn.finalPercentage)}
+                      {returnInfo.rate}%
                     </span>
                   </div>
-                  {monthlyReturn.instagramBonus > 0 && (
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-gray-500 text-sm">Base + Instagram:</span>
-                      <span className="text-sm text-pink-500">
-                        {formatPercentage(monthlyReturn.basePercentage)} + {formatPercentage(monthlyReturn.instagramBonus)}
-                      </span>
-                    </div>
-                  )}
+                  <div className="text-xs text-green-500 mt-1">
+                    Personal capital returns (monthly cashout system)
+                  </div>
                 </div>
 
-                {/* Daily Return */}
+                {/* Daily Rate */}
                 <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Daily Return:</span>
+                    <span className="text-gray-300">Daily Rate:</span>
                     <span className="text-2xl font-bold text-blue-400">
-                      {formatCurrency(dailyReturn.dailyReturn)}
+                      {formatCurrency(dailyReturnInfo.dailyReturn)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-gray-400">Daily Rate:</span>
+                    <span className="text-gray-400">Daily Percentage:</span>
                     <span className="text-lg font-semibold text-blue-400">
-                      {formatPercentage(dailyReturn.finalPercentage / 30)}
+                      {formatPercentage(dailyReturnInfo.dailyRate)}
                     </span>
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    Accumulates daily until cashout request
+                    Accumulates daily, paid monthly via cashout
                   </div>
                 </div>
 
-                {/* Donation Breakdown */}
-                {isDonationEnabled && depositAmount && (
-                  <div className="p-4 bg-goat-gold/10 border border-goat-gold/30 rounded-lg">
-                    <div className="text-center mb-2">
-                      <span className="text-goat-gold font-semibold">Platform Development Support</span>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-300">Donation (0.5%):</span>
-                        <span className="text-goat-gold font-semibold">
-                          {formatCurrency(donationInfo.donation)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-300">Net Deposit:</span>
-                        <span className="text-white font-semibold">
-                          {formatCurrency(donationInfo.netDeposit)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+
 
                 {/* Annual Projection */}
-                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Annual Return:</span>
-                    <span className="text-xl font-bold text-blue-400">
-                      {formatCurrency(monthlyReturn.return * 12)}
-                    </span>
-                  </div>
-                  {isDonationEnabled && (
-                    <div className="text-xs text-gray-400 mt-1">
-                      Based on net deposit of {formatCurrency(donationInfo.netDeposit)}
+                {returnInfo.rate > 0 && (
+                  <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Annual Projection:</span>
+                      <span className="text-xl font-bold text-purple-400">
+                        {formatCurrency(dailyReturnInfo.annualReturn)}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Based on {returnInfo.label} tier ({returnInfo.rate}% monthly) • Monthly cashouts
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -410,7 +397,7 @@ const Deposit = () => {
             <div className="mt-8">
               <h3 className="text-lg font-semibold text-white mb-4">Return Tiers</h3>
               <div className="space-y-3">
-                {returnTiers.map((tier, index) => (
+                {returnTiersWithColors.map((tier, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                     <div className="flex items-center">
                       <div className={`w-3 h-3 bg-gradient-to-r ${tier.color} rounded-full mr-3`}></div>
@@ -445,7 +432,7 @@ const Deposit = () => {
             <div className="glass rounded-xl p-6">
               <TrendingUp className="w-12 h-12 text-goat-gold mx-auto mb-4" />
               <h3 className="text-xl font-bold text-white mb-2">High Returns</h3>
-              <p className="text-gray-300">Earn up to 16% monthly returns (15% base + 1% Instagram bonus)</p>
+              <p className="text-gray-300">Earn up to 10% monthly returns across 7 tiers (Diamond tier)</p>
             </div>
             
             <div className="glass rounded-xl p-6">

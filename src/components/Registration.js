@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
 import { authApi } from '../api/auth';
@@ -115,33 +115,55 @@ const Registration = () => {
     }
   };
 
-  // Check if wallet is connected, if not redirect to home
-  if (!account) {
-    console.log('[DEBUG] Registration: No wallet connected, redirecting to home');
-    navigate('/', { replace: true });
-    return null;
-  }
+  // Handle navigation in useEffect to avoid rendering issues
+  useEffect(() => {
+    if (!account) {
+      console.log('[DEBUG] Registration: No wallet connected, redirecting to home');
+      navigate('/', { replace: true });
+      return;
+    }
 
-  // If user is already registered, redirect to home
-  if (registrationChecked && isUserRegistered === true) {
-    console.log('[DEBUG] Registration: User already registered, redirecting to home');
-    navigate('/', { replace: true });
-    return null;
-  }
+    if (registrationChecked && isUserRegistered === true) {
+      console.log('[DEBUG] Registration: User already registered, redirecting to home');
+      navigate('/', { replace: true });
+      return;
+    }
+  }, [account, registrationChecked, isUserRegistered, navigate]);
 
-  // Show loading while checking registration status
-  if (!registrationChecked) {
-    console.log('[DEBUG] Registration: Still checking registration status...');
+  // Show loading if no wallet or still checking
+  if (!account || !registrationChecked) {
+    const message = !account ? 
+      'Please connect your wallet...' : 
+      'Checking registration status...';
+    
+    console.log('[DEBUG] Registration:', !account ? 'No wallet connected' : 'Still checking registration status...');
     return (
       <div className="min-h-screen bg-gradient-to-br from-goat-dark to-gray-900 flex items-center justify-center px-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-goat-gold mx-auto mb-4"></div>
-          <h1 className="text-2xl font-bold text-goat-gold mb-2">Checking Registration Status</h1>
-          <p className="text-gray-300">Please wait...</p>
+          <h1 className="text-2xl font-bold text-goat-gold mb-2">
+            {!account ? 'Connect Wallet' : 'Checking Registration Status'}
+          </h1>
+          <p className="text-gray-300">{message}</p>
         </div>
       </div>
     );
   }
+
+  // If user is already registered, show loading (navigation will happen in useEffect)
+  if (isUserRegistered === true) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-goat-dark to-gray-900 flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-goat-gold mx-auto mb-4"></div>
+          <h1 className="text-2xl font-bold text-goat-gold mb-2">Redirecting...</h1>
+          <p className="text-gray-300">You are already registered</p>
+        </div>
+      </div>
+    );
+  }
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-goat-dark to-gray-900 flex items-center justify-center px-4">

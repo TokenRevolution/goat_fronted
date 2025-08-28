@@ -17,15 +17,23 @@ import {
   Activity
 } from 'lucide-react';
 import { 
-  calculateMonthlyReturn, 
+  calculateReturnRate,
   calculateDailyReturn,
-  calculateAccumulatedEarnings,
-  calculateRank, 
-  calculateRankProgress, 
+  calculateUserLevel,
+  calculateCashoutLimits,
+  calculateNetworkBonuses,
+  calculatePersonalCapitalReturns,
+  calculateDailyNetworkEarnings,
+  getTimeUntilCashout,
+  getTimeUntilDailyCredit,
   formatCurrency,
-  formatPercentage 
-} from '../utils/platformUtils';
-import { goatApi } from '../api';
+  formatPercentage,
+  getLevelColor,
+  getLevelBadgeColor,
+  POSITION_LEVELS
+} from '../utils/goatBusinessLogic';
+import { goatApi as oldGoatApi } from '../api';
+import { goatApi } from '../api/goat';
 import { makeApiRequest, cancelUserRequests } from '../utils/ApiManager';
 
 const Dashboard = () => {
@@ -104,71 +112,84 @@ const Dashboard = () => {
         setLoading(true);
         setError(null);
 
-        // Make API calls ONE AT A TIME using the global rate limiter
-        // Priority: 1=highest, 10=normal, 20=lowest
-        
-        console.log('[DEBUG] Dashboard: Fetching deposits...');
-        const depositsResponse = await makeApiRequest(
-          `deposits_${account}`,
-          () => goatApi.deposits.getDepositStats(account),
+        // Single API call to get all dashboard data using the new GOAT API
+        console.log('[DEBUG] Dashboard: Fetching comprehensive dashboard data...');
+        const dashboardResponse = await makeApiRequest(
+          `dashboard_${account}`,
+          () => goatApi.getUserDashboardData(account),
           1 // Highest priority
         );
 
-        console.log('[DEBUG] Dashboard: Fetching referrals...');
-        const referralsResponse = await makeApiRequest(
-          `referrals_${account}`,
-          () => goatApi.referrals.getReferralStats(account),
-          2
-        );
+        console.log('[DEBUG] Dashboard: Dashboard API response received successfully');
 
-        console.log('[DEBUG] Dashboard: Fetching trophies...');
-        const trophiesResponse = await makeApiRequest(
-          `trophies_${account}`,
-          () => goatApi.trophies.getUserTrophies(account),
-          3
-        );
+        if (dashboardResponse.success && dashboardResponse.data) {
+          const { position, deposits, earnings, network } = dashboardResponse.data;
 
-        console.log('[DEBUG] Dashboard: Fetching transactions...');
-        const transactionsResponse = await makeApiRequest(
-          `transactions_${account}`,
-          () => goatApi.wallet.getTransactions(account, 1, 5),
-          4 // Lowest priority
-        );
+          // Calculate DUAL CREDIT SYSTEM earnings
+          const personalCapitalReturns = calculatePersonalCapitalReturns(deposits.totalDeposits, 30);
+          const dailyNetworkEarnings = calculateDailyNetworkEarnings(position.current, network.teamRevenue, network.sameLevelRevenue || 0);
+          const cashoutCountdown = getTimeUntilCashout();
+          const networkCreditCountdown = getTimeUntilDailyCredit();
 
-        console.log('[DEBUG] Dashboard: All API responses received successfully');
+          // Update user stats with GOAT API data
+          setUserStats(prevStats => ({
+            ...prevStats,
+            totalDeposits: deposits.totalDeposits,
+            personalDeposits: deposits.totalDeposits,
+            monthlyEarnings: deposits.monthlyReturn,
+            dailyEarnings: deposits.dailyReturn,
+            accumulatedEarnings: earnings.accumulated,
+            
+            // DUAL CREDIT SYSTEM DATA
+            personalCapitalReturns,
+            dailyNetworkEarnings,
+            cashoutCountdown,
+            networkCreditCountdown,
+            
+            totalReferrals: 0, // Will be calculated from network data
+            networkValue: network.teamRevenue,
+            currentRank: position.current.name,
+            rankLevel: position.current.level_id,
+            nextRankProgress: position.progress,
+            returnRate: deposits.returnRate,
+            returnTier: deposits.returnTier,
+            canEarn: deposits.canEarn,
+            maxCashout: earnings.maxCashout,
+            multiplier: position.current.max_multiplier,
+            networkBonus: position.current.network_bonus_rate * network.teamRevenue,
+            sameLevelBonus: position.current.same_level_bonus_rate * network.teamRevenue,
+            userLevel: position // Store complete level info
+          }));
 
-        // Update user stats
-        setUserStats(prevStats => ({
-          ...prevStats,
-          totalDeposits: depositsResponse.stats?.totalDeposits || 0,
-          personalDeposits: depositsResponse.stats?.totalDeposits || 0,
-          monthlyEarnings: depositsResponse.stats?.monthlyReturn || 0,
-          dailyEarnings: depositsResponse.stats?.dailyReturn || 0,
-          accumulatedEarnings: depositsResponse.stats?.accumulatedEarnings || 0,
-          totalReferrals: referralsResponse.stats?.totalReferrals || 0,
-          networkValue: referralsResponse.stats?.networkValue || 0,
-          currentRank: trophiesResponse.currentLevel || 'Pulcini',
-          rankLevel: trophiesResponse.currentLevel || 1,
-          nextRankProgress: trophiesResponse.nextTrophy?.progress || 0
-        }));
+          // Update network overview
+          setNetworkOverview({
+            directReferrals: 0, // Will be enhanced later
+            indirectReferrals: 0, // Will be enhanced later
+            totalNetworkDeposits: network.teamRevenue,
+            averageDeposit: 0 // Will be calculated later
+          });
 
-        // Update network overview
-        setNetworkOverview({
-          directReferrals: referralsResponse.stats?.directReferrals || 0,
-          indirectReferrals: referralsResponse.stats?.indirectReferrals || 0,
-          totalNetworkDeposits: referralsResponse.stats?.networkValue || 0,
-          averageDeposit: referralsResponse.stats?.averageDepositPerReferral || 0
-        });
-
-        // Update recent activity with transactions
-        if (transactionsResponse.transactions) {
-          setRecentActivity(transactionsResponse.transactions.map(tx => ({
-            type: tx.type,
-            amount: tx.amount,
-            date: new Date(tx.created_at).toISOString().split('T')[0],
-            status: tx.status,
-            time: new Date(tx.created_at).toLocaleTimeString()
-          })));
+          // Create recent activity from earnings
+          if (earnings.recent && earnings.recent.length > 0) {
+            setRecentActivity(earnings.recent.map(earning => ({
+              type: 'daily_return',
+              amount: earning.total_earnings,
+              date: earning.date,
+              status: 'completed',
+              time: '00:00'
+            })));
+          }
+        } else {
+          console.warn('[DEBUG] Dashboard: Invalid dashboard response, using fallback data');
+          // Fallback to default values
+          setUserStats(prevStats => ({
+            ...prevStats,
+            currentRank: 'Cliente',
+            rankLevel: 0,
+            returnRate: 0,
+            returnTier: 'No Return',
+            canEarn: false
+          }));
         }
 
         console.log('[DEBUG] Dashboard: Data updated successfully');
@@ -313,22 +334,31 @@ const Dashboard = () => {
                 <p className="text-gray-400 mt-1 text-sm sm:text-base">Here's your complete platform overview and earnings status</p>
               </div>
               <div className="text-center lg:text-right w-full lg:w-auto">
-                <div className="text-sm text-gray-400 mb-1">Current Rank</div>
-                <div className="text-xl sm:text-2xl font-bold text-goat-gold">{userStats.currentRank}</div>
-                <div className="text-xs text-gray-500">Level {userStats.rankLevel}/7</div>
+                <div className="text-sm text-gray-400 mb-1">Current Position</div>
+                <div className={`text-xl sm:text-2xl font-bold ${getLevelColor(userStats.rankLevel)}`}>
+                  {userStats.currentRank}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {userStats.returnRate > 0 ? `${userStats.returnRate}% Annual Return` : 'No Return Yet'}
+                </div>
+                <div className={`text-xs px-2 py-1 rounded-full mt-1 ${getLevelBadgeColor(userStats.rankLevel)}`}>
+                  {userStats.returnTier}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Stats Grid - Row 1 */}
+        {/* Stats Grid - Row 1 - GOAT Business Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           <div className="glass rounded-xl p-4 sm:p-6 hover:scale-105 transition-transform duration-200 border border-green-500/20 hover:border-green-500/40">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
                 <p className="text-gray-400 text-xs sm:text-sm font-medium">Personal Deposits</p>
                 <p className="text-lg sm:text-2xl font-bold text-white truncate">{formatCurrency(userStats.personalDeposits)}</p>
-                <p className="text-xs text-green-400 mt-1">Total invested</p>
+                <p className="text-xs text-green-400 mt-1">
+                  {userStats.canEarn ? `${userStats.returnRate}% Annual Return` : 'Need $100 to earn'}
+                </p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
                 <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -339,41 +369,16 @@ const Dashboard = () => {
           <div className="glass rounded-xl p-4 sm:p-6 hover:scale-105 transition-transform duration-200 border border-goat-gold/20 hover:border-goat-gold/40">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm font-medium">Monthly Earnings</p>
-                <p className="text-lg sm:text-2xl font-bold text-goat-gold truncate">{formatCurrency(userStats.monthlyEarnings)}</p>
-                <p className="text-xs text-goat-gold mt-1">Per month</p>
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Daily Earnings</p>
+                <p className="text-lg sm:text-2xl font-bold text-goat-gold truncate">
+                  {userStats.canEarn ? formatCurrency(userStats.dailyEarnings) : '$0.00'}
+                </p>
+                <p className="text-xs text-goat-gold mt-1">
+                  {userStats.canEarn ? 'Credited at 00:00' : 'Increase deposit to earn'}
+                </p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-goat-gold to-orange-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
-              </div>
-            </div>
-          </div>
-
-          <div className="glass rounded-xl p-4 sm:p-6 hover:scale-105 transition-transform duration-200 border border-blue-500/20 hover:border-blue-500/40">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm font-medium">Daily Earnings</p>
-                <p className="text-lg sm:text-2xl font-bold text-blue-400 truncate">{formatCurrency(userStats.dailyEarnings)}</p>
-                <p className="text-xs text-blue-400 mt-1">Per day</p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Grid - Row 2 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <div className="glass rounded-xl p-4 sm:p-6 hover:scale-105 transition-transform duration-200 border border-green-500/20 hover:border-green-500/40">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm font-medium">Accumulated</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-400 truncate">{formatCurrency(userStats.accumulatedEarnings)}</p>
-                <p className="text-xs text-green-400 mt-1">Ready for cashout</p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <Target className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
               </div>
             </div>
           </div>
@@ -381,12 +386,34 @@ const Dashboard = () => {
           <div className="glass rounded-xl p-4 sm:p-6 hover:scale-105 transition-transform duration-200 border border-purple-500/20 hover:border-purple-500/40">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm font-medium">Total Referrals</p>
-                <p className="text-lg sm:text-2xl font-bold text-white">{userStats.totalReferrals}</p>
-                <p className="text-xs text-purple-400 mt-1">Network size</p>
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Max Cashout</p>
+                <p className="text-lg sm:text-2xl font-bold text-purple-400 truncate">{formatCurrency(userStats.maxCashout || 0)}</p>
+                <p className="text-xs text-purple-400 mt-1">
+                  {userStats.multiplier}x your deposit
+                </p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-400 to-pink-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <Target className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid - Row 2 - Network & Bonuses */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="glass rounded-xl p-4 sm:p-6 hover:scale-105 transition-transform duration-200 border border-green-500/20 hover:border-green-500/40">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0 mr-3">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Monthly Return</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-400 truncate">
+                  {userStats.canEarn ? formatCurrency(userStats.monthlyEarnings) : '$0.00'}
+                </p>
+                <p className="text-xs text-green-400 mt-1">
+                  {userStats.canEarn ? `${userStats.returnTier} tier` : 'No tier yet'}
+                </p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
             </div>
           </div>
@@ -394,69 +421,94 @@ const Dashboard = () => {
           <div className="glass rounded-xl p-4 sm:p-6 hover:scale-105 transition-transform duration-200 border border-blue-500/20 hover:border-blue-500/40">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm font-medium">Network Value</p>
-                <p className="text-lg sm:text-2xl font-bold text-white truncate">{formatCurrency(userStats.networkValue)}</p>
-                <p className="text-xs text-blue-400 mt-1">Total network</p>
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Network Bonus</p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-400 truncate">{formatCurrency(userStats.networkBonus || 0)}</p>
+                <p className="text-xs text-blue-400 mt-1">
+                  {userStats.userLevel?.current?.networkBonus || 0}% from team
+                </p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+            </div>
+          </div>
+
+          <div className="glass rounded-xl p-4 sm:p-6 hover:scale-105 transition-transform duration-200 border border-orange-500/20 hover:border-orange-500/40">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0 mr-3">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Team Revenue</p>
+                <p className="text-lg sm:text-2xl font-bold text-orange-400 truncate">{formatCurrency(userStats.networkValue)}</p>
+                <p className="text-xs text-orange-400 mt-1">Total team volume</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-orange-400 to-red-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
                 <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Cashout Section */}
-        <div className="mb-8">
+        {/* DUAL CREDIT SYSTEM - Personal Capital & Network Earnings */}
+        <div className="mb-8 space-y-6">
+          
+          {/* Personal Capital Returns - Monthly Cashout */}
           <div className="glass rounded-2xl p-4 sm:p-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
               <div className="flex items-center">
                 <Download className="w-6 h-6 sm:w-8 sm:h-8 text-green-400 mr-3" />
-                <h3 className="text-xl sm:text-2xl font-bold text-white">Cashout Earnings</h3>
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white">Personal Capital Returns</h3>
+                  <p className="text-sm text-gray-400">Monthly cashout system</p>
+                </div>
               </div>
               <div className="text-center sm:text-right w-full sm:w-auto">
-                <div className="text-sm text-gray-400">Last Cashout</div>
-                <div className="text-green-400 font-semibold">{userStats.lastCashout}</div>
+                <div className="text-sm text-gray-400">Next Cashout</div>
+                <div className="text-green-400 font-semibold">
+                  {userStats.cashoutCountdown?.days || 0} days
+                </div>
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
               <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-green-500/20">
                 <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
-                  {formatCurrency(userStats.accumulatedEarnings)}
+                  {formatCurrency(userStats.personalCapitalReturns?.accumulatedAmount || 0)}
                 </div>
-                <div className="text-gray-300 font-medium text-sm sm:text-base">Available for Cashout</div>
-                <div className="text-xs text-gray-400 mt-1">Accumulated daily returns</div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Accumulated Returns</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {userStats.personalCapitalReturns?.daysAccumulated || 0} days accumulated
+                </div>
               </div>
               
-              <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-orange-500/20">
-                <div className="text-2xl sm:text-3xl font-bold text-orange-400 mb-2">
-                  {formatCurrency(userStats.pendingCashout)}
+              <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-yellow-500/20">
+                <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">
+                  {formatCurrency(userStats.personalCapitalReturns?.dailyAmount || 0)}
                 </div>
-                <div className="text-gray-300 font-medium text-sm sm:text-base">Pending Payment</div>
-                <div className="text-xs text-gray-400 mt-1">Arrives at midnight</div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Daily Rate</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {userStats.personalCapitalReturns?.rate || 0}% monthly
+                </div>
               </div>
               
               <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-blue-500/20">
                 <div className="text-2xl sm:text-3xl font-bold text-blue-400 mb-2">
-                  {userStats.totalCashouts}
+                  {formatCurrency(userStats.maxCashout || 0)}
                 </div>
-                <div className="text-gray-300 font-medium text-sm sm:text-base">Total Cashouts</div>
-                <div className="text-xs text-gray-400 mt-1">Successfully completed</div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Max Cashout</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {userStats.multiplier || 0}x limit
+                </div>
               </div>
             </div>
             
             <div className="flex items-center justify-center">
               <button
                 onClick={handleCashout}
-                disabled={userStats.accumulatedEarnings <= 0}
+                disabled={(userStats.personalCapitalReturns?.accumulatedAmount || 0) <= 0}
                 className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-emerald-500 hover:to-green-500 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-xl text-base sm:text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center w-full sm:w-auto justify-center"
               >
                 <Download className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
                 <span className="truncate">
-                  {userStats.accumulatedEarnings > 0 
-                    ? `Cashout ${formatCurrency(userStats.accumulatedEarnings)}`
-                    : 'No Earnings Available'
-                  }
+                  Request Monthly Cashout
                 </span>
               </button>
             </div>
@@ -464,106 +516,179 @@ const Dashboard = () => {
             <div className="mt-4 text-center">
               <div className="flex items-center justify-center text-sm text-gray-400">
                 <Clock className="w-4 h-4 mr-2" />
-                Payments are processed at midnight after cashout request
+                Monthly cashouts available on the 1st of each month
+              </div>
+            </div>
+          </div>
+
+          {/* Daily Network Earnings - Credited Daily */}
+          <div className="glass rounded-2xl p-4 sm:p-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
+              <div className="flex items-center">
+                <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400 mr-3" />
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white">Network Earnings</h3>
+                  <p className="text-sm text-gray-400">Daily credits at 00:00</p>
+                </div>
+              </div>
+              <div className="text-center sm:text-right w-full sm:w-auto">
+                <div className="text-sm text-gray-400">Next Credit</div>
+                <div className="text-blue-400 font-semibold">
+                  {userStats.networkCreditCountdown?.hours || 0}h {userStats.networkCreditCountdown?.minutes || 0}m
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+              <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-blue-500/20">
+                <div className="text-2xl sm:text-3xl font-bold text-blue-400 mb-2">
+                  {formatCurrency(userStats.dailyNetworkEarnings?.totalDaily || 0)}
+                </div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Today's Earning</div>
+                <div className="text-xs text-gray-400 mt-1">Auto-credited daily</div>
+              </div>
+              
+              <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-purple-500/20">
+                <div className="text-2xl sm:text-3xl font-bold text-purple-400 mb-2">
+                  {formatCurrency(userStats.dailyNetworkEarnings?.networkBonus || 0)}
+                </div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Network Bonus</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {((userStats.userLevel?.current?.networkBonus || 0) * 100).toFixed(1)}% rate
+                </div>
+              </div>
+              
+              <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-cyan-500/20">
+                <div className="text-2xl sm:text-3xl font-bold text-cyan-400 mb-2">
+                  {formatCurrency(userStats.dailyNetworkEarnings?.sameLevelBonus || 0)}
+                </div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Same Level Bonus</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {((userStats.userLevel?.current?.sameLevel || 0) * 100).toFixed(1)}% rate
+                </div>
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <div className="inline-flex items-center space-x-2 bg-black/20 rounded-xl px-4 py-2 border border-blue-500/20">
+                <Activity className="w-4 h-4 text-blue-400" />
+                <span className="text-sm text-gray-400">
+                  Next credit automatically processed at 00:00
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Rank and Progress */}
+        {/* Position Level and Progress */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-8">
           <div className="glass rounded-xl p-4 sm:p-6 border border-goat-gold/20 hover:border-goat-gold/40 transition-colors duration-200">
             <h3 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center">
-              <Star className="w-4 h-4 sm:w-5 sm:h-5 text-goat-gold mr-2" />
-              Current Rank
+              <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-goat-gold mr-2" />
+              Current Position
             </h3>
             <div className="text-center">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-r from-goat-gold to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg animate-pulse">
-                <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-black" />
+              <div className={`w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-r from-goat-gold to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg ${getLevelBadgeColor(userStats.rankLevel)}`}>
+                <Trophy className={`w-10 h-10 sm:w-12 sm:h-12 ${userStats.rankLevel > 0 ? 'text-black' : 'text-white'}`} />
               </div>
-              <h4 className="text-xl sm:text-2xl font-bold text-goat-gold mb-2">{userStats.currentRank}</h4>
-              <p className="text-gray-400 mb-4 text-sm sm:text-base">Level {userStats.rankLevel} of 7</p>
+              <h4 className={`text-xl sm:text-2xl font-bold mb-2 ${getLevelColor(userStats.rankLevel)}`}>
+                {userStats.currentRank}
+              </h4>
+              <p className="text-gray-400 mb-2 text-sm sm:text-base">
+                {userStats.userLevel?.current?.description || 'Base level position'}
+              </p>
+              <div className={`inline-block px-3 py-1 rounded-full text-xs ${getLevelBadgeColor(userStats.rankLevel)}`}>
+                {userStats.userLevel?.current?.networkBonus || 0}% Network Bonus
+              </div>
               
-              <div className="mb-2">
-                <div className="flex justify-between text-sm text-gray-400 mb-1">
-                  <span>Progress to next rank</span>
-                  <span className="text-goat-gold font-semibold">{userStats.nextRankProgress}%</span>
+              {!userStats.userLevel?.isMaxLevel && (
+                <div className="mt-4">
+                  <div className="flex justify-between text-sm text-gray-400 mb-1">
+                    <span>Progress to {userStats.userLevel?.next?.name}</span>
+                    <span className="text-goat-gold font-semibold">{Math.round(userStats.nextRankProgress)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-3">
+                    <div 
+                      className="bg-gradient-to-r from-goat-gold to-orange-500 h-3 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${userStats.nextRankProgress}%` }}
+                    ></div>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-700 rounded-full h-3">
-                  <div 
-                    className="bg-gradient-to-r from-goat-gold to-orange-500 h-3 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${userStats.nextRankProgress}%` }}
-                  ></div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
           <div className="glass rounded-xl p-4 sm:p-6 border border-blue-500/20 hover:border-blue-500/40 transition-colors duration-200">
             <h3 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center">
-              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 mr-2" />
-              Network Overview
+              <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 mr-2" />
+              Next Level Requirements
             </h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-black/20 rounded-lg">
-                <span className="text-gray-400 flex items-center">
-                  <Users className="w-4 h-4 mr-2 text-blue-400" />
-                  Direct Referrals
-                </span>
-                <span className="text-white font-semibold bg-blue-500/20 px-3 py-1 rounded-full">
-                  {networkOverview.directReferrals}
-                </span>
+            {userStats.userLevel?.isMaxLevel ? (
+              <div className="text-center py-8">
+                <div className="text-6xl mb-4">🏆</div>
+                <h4 className="text-xl font-bold text-goat-gold mb-2">Maximum Level Reached!</h4>
+                <p className="text-gray-400">You've achieved the highest position in GOAT Platform</p>
               </div>
-              <div className="flex justify-between items-center p-3 bg-black/20 rounded-lg">
-                <span className="text-gray-400 flex items-center">
-                  <Users className="w-4 h-4 mr-2 text-purple-400" />
-                  Indirect Referrals
-                </span>
-                <span className="text-white font-semibold bg-purple-500/20 px-3 py-1 rounded-full">
-                  {networkOverview.indirectReferrals}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-black/20 rounded-lg">
-                <span className="text-gray-400 flex items-center">
-                  <DollarSign className="w-4 h-4 mr-2 text-green-400" />
-                  Total Network Deposits
-                </span>
-                <span className="text-white font-semibold bg-green-500/20 px-3 py-1 rounded-full">
-                  {formatCurrency(networkOverview.totalNetworkDeposits)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-black/20 rounded-lg">
-                <span className="text-gray-400 flex items-center">
-                  <DollarSign className="w-4 h-4 mr-2 text-goat-gold" />
-                  Personal Deposits
-                </span>
-                <span className="text-white font-semibold bg-goat-gold/20 px-3 py-1 rounded-full">
-                  {formatCurrency(userStats.personalDeposits)}
-                </span>
-              </div>
-              
-              {/* Next Rank Requirements */}
-              <div className="mt-6 p-4 bg-gradient-to-r from-goat-gold/10 to-orange-500/10 rounded-lg border border-goat-gold/30">
-                <h4 className="text-goat-gold font-semibold mb-3 flex items-center">
-                  <Zap className="w-4 h-4 mr-2" />
-                  Next Rank: Pulcini
-                </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Network Required:</span>
-                    <span className="text-white font-semibold">$5,000 - $10,000</span>
+            ) : (
+              <div className="space-y-4">
+                <div className="text-center mb-4">
+                  <h4 className={`text-lg font-bold ${getLevelColor(userStats.userLevel?.next?.id || 1)} mb-2`}>
+                    {userStats.userLevel?.next?.name || 'Next Level'}
+                  </h4>
+                  <p className="text-sm text-gray-400">
+                    {userStats.userLevel?.next?.requirements || 'Complete current level requirements'}
+                  </p>
+                </div>
+
+                {userStats.userLevel?.progress?.requirements?.map((req, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">{req.name}</span>
+                      <span className="text-white font-semibold text-sm">
+                        {formatCurrency(req.current)} / {formatCurrency(req.required)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-blue-400 to-cyan-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, req.progress)}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-right text-xs text-blue-400">
+                      {Math.round(req.progress)}% Complete
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Personal Required:</span>
-                    <span className="text-white font-semibold">$1,000</span>
-                  </div>
-                  <div className="text-center mt-3 p-2 bg-goat-gold/20 rounded border border-goat-gold/30">
-                    <div className="text-goat-gold font-semibold">🎁 Reward: Free WeFi Card</div>
-                    <div className="text-xs text-gray-400 mt-1">Decentralized multi-chain card</div>
+                ))}
+                
+                {/* Next Level Benefits */}
+                <div className="mt-6 p-4 bg-gradient-to-r from-goat-gold/10 to-orange-500/10 rounded-lg border border-goat-gold/30">
+                  <h4 className="text-goat-gold font-semibold mb-3 flex items-center">
+                    <Zap className="w-4 h-4 mr-2" />
+                    Level Benefits
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-300">Network Bonus:</span>
+                      <span className="text-goat-gold font-semibold">
+                        {userStats.userLevel?.next?.networkBonus || 0}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-300">Max Multiplier:</span>
+                      <span className="text-goat-gold font-semibold">
+                        {userStats.userLevel?.next?.maxMultiplier || 0}x
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-300">Same Level Bonus:</span>
+                      <span className="text-goat-gold font-semibold">
+                        {userStats.userLevel?.next?.sameLevel || 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -641,25 +766,65 @@ const Dashboard = () => {
           </button>
         </div>
 
-        {/* Footer Stats */}
+        {/* GOAT Platform Stats */}
         <div className="mt-12 mb-8">
           <div className="glass rounded-2xl p-4 sm:p-6 bg-gradient-to-r from-gray-800/50 to-gray-900/50 border border-gray-600/30">
+            <h3 className="text-center text-lg font-bold text-white mb-6">GOAT Platform Statistics</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 text-center">
               <div>
-                <div className="text-2xl font-bold text-goat-gold mb-1">7</div>
-                <div className="text-gray-400 text-sm">Trophy Levels</div>
+                <div className="text-2xl font-bold text-goat-gold mb-1">9</div>
+                <div className="text-gray-400 text-sm">Position Levels</div>
+                <div className="text-xs text-gray-500 mt-1">Cliente to Position 8</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-blue-400 mb-1">24/7</div>
-                <div className="text-gray-400 text-sm">Platform Active</div>
+                <div className="text-2xl font-bold text-green-400 mb-1">10%</div>
+                <div className="text-gray-400 text-sm">Max Return Rate</div>
+                <div className="text-xs text-gray-500 mt-1">At $10K+ deposits</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-green-400 mb-1">∞</div>
-                <div className="text-gray-400 text-sm">Earning Potential</div>
+                <div className="text-2xl font-bold text-blue-400 mb-1">50%</div>
+                <div className="text-gray-400 text-sm">Max Network Bonus</div>
+                <div className="text-xs text-gray-500 mt-1">At Position 8</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-purple-400 mb-1">🚀</div>
-                <div className="text-gray-400 text-sm">GOAT Status</div>
+                <div className="text-2xl font-bold text-purple-400 mb-1">00:00</div>
+                <div className="text-gray-400 text-sm">Daily Credits</div>
+                <div className="text-xs text-gray-500 mt-1">Every midnight</div>
+              </div>
+            </div>
+            
+            {/* Return Rate Tiers */}
+            <div className="mt-8 border-t border-gray-600/30 pt-6">
+              <h4 className="text-center text-sm font-semibold text-gray-300 mb-4">Return Rate Tiers</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 text-center">
+                <div className="p-2 bg-black/20 rounded">
+                  <div className="text-sm font-bold text-gray-400">$0-$100</div>
+                  <div className="text-xs text-gray-500">0%</div>
+                </div>
+                <div className="p-2 bg-black/20 rounded">
+                  <div className="text-sm font-bold text-blue-400">$100-$500</div>
+                  <div className="text-xs text-blue-300">5%</div>
+                </div>
+                <div className="p-2 bg-black/20 rounded">
+                  <div className="text-sm font-bold text-green-400">$500-$1K</div>
+                  <div className="text-xs text-green-300">6%</div>
+                </div>
+                <div className="p-2 bg-black/20 rounded">
+                  <div className="text-sm font-bold text-yellow-400">$1K-$2.5K</div>
+                  <div className="text-xs text-yellow-300">7%</div>
+                </div>
+                <div className="p-2 bg-black/20 rounded">
+                  <div className="text-sm font-bold text-orange-400">$2.5K-$5K</div>
+                  <div className="text-xs text-orange-300">8%</div>
+                </div>
+                <div className="p-2 bg-black/20 rounded">
+                  <div className="text-sm font-bold text-purple-400">$5K-$10K</div>
+                  <div className="text-xs text-purple-300">9%</div>
+                </div>
+                <div className="p-2 bg-black/20 rounded">
+                  <div className="text-sm font-bold text-goat-gold">$10K+</div>
+                  <div className="text-xs text-goat-gold">10%</div>
+                </div>
               </div>
             </div>
           </div>
