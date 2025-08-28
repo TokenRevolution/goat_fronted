@@ -1,15 +1,66 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
+import { goatApi } from '../api';
 import { Trophy, Users, TrendingUp, Shield, Zap, Star, ArrowRight, Instagram, Heart, MessageCircle, CreditCard, AlertTriangle, CheckCircle, Upload, Gift } from 'lucide-react';
 
 const Home = () => {
-  const { isConnected } = useWallet();
+  const { isConnected, isUserRegistered, registrationChecked } = useWallet();
+  const navigate = useNavigate();
+  const [platformStats, setPlatformStats] = useState({
+    totalUsers: 0,
+    totalDeposits: 0,
+    totalTrophiesAwarded: 0,
+    networkGrowthRate: 0
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // Handle registration redirect when user connects wallet
+  useEffect(() => {
+    console.log('[DEBUG] Home: Registration check effect triggered', {
+      isConnected,
+      isUserRegistered,
+      registrationChecked,
+      location: window.location.pathname
+    });
+    
+    if (isConnected && registrationChecked && isUserRegistered === false) {
+      console.log('[DEBUG] Home: User connected but not registered, redirecting to registration...');
+      navigate('/register');
+    } else if (isConnected && registrationChecked && isUserRegistered === true) {
+      console.log('[DEBUG] Home: User connected and registered, staying on home');
+    } else if (isConnected && !registrationChecked) {
+      console.log('[DEBUG] Home: User connected but registration check not completed yet');
+    } else if (!isConnected) {
+      console.log('[DEBUG] Home: User not connected');
+    }
+  }, [isConnected, isUserRegistered, registrationChecked, navigate]);
+
+  // Load platform statistics
+  useEffect(() => {
+    const loadPlatformStats = async () => {
+      try {
+        console.log('[DEBUG] Home: Loading platform statistics...');
+        const response = await goatApi.deposits.getPlatformStats();
+        if (response.success) {
+          setPlatformStats(response.stats);
+          console.log('[DEBUG] Home: Platform stats loaded:', response.stats);
+        }
+      } catch (error) {
+        console.error('[DEBUG] Home: Error loading platform stats:', error);
+        // Keep default values on error
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    loadPlatformStats();
+  }, []);
 
   const features = [
     {
       icon: Trophy,
-      title: '7 Trophy Levels',
+      title: '8 Trophy Levels',
       description: 'From Pulcini to Serie A, climb the ranks and collect exclusive trophies',
       color: 'from-goat-gold to-orange-500'
     },
@@ -33,11 +84,50 @@ const Home = () => {
     }
   ];
 
+  // Format numbers for display
+  const formatNumber = (num) => {
+    if (num >= 1000000) {
+      return `$${(num / 1000000).toFixed(1)}M`;
+    } else if (num >= 1000) {
+      return `$${(num / 1000).toFixed(1)}K`;
+    } else if (num > 0) {
+      return `$${num.toFixed(0)}`;
+    }
+    return '$0';
+  };
+
+  const formatCount = (num) => {
+    if (num >= 1000000) {
+      return `${(num / 1000000).toFixed(1)}M+`;
+    } else if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)}K+`;
+    } else if (num > 0) {
+      return `${num}+`;
+    }
+    return '0';
+  };
+
   const stats = [
-    { label: 'Total Users', value: '50,000+', icon: Users },
-    { label: 'Total Deposits', value: '$25M+', icon: TrendingUp },
-    { label: 'Trophies Awarded', value: '150,000+', icon: Trophy },
-    { label: 'Network Growth', value: '300%', icon: Zap }
+    { 
+      label: 'Total Users', 
+      value: statsLoading ? 'Loading...' : formatCount(platformStats.totalUsers), 
+      icon: Users 
+    },
+    { 
+      label: 'Total Deposits', 
+      value: statsLoading ? 'Loading...' : formatNumber(platformStats.totalDeposits), 
+      icon: TrendingUp 
+    },
+    { 
+      label: 'Trophies Awarded', 
+      value: statsLoading ? 'Loading...' : formatCount(platformStats.totalTrophiesAwarded), 
+      icon: Trophy 
+    },
+    { 
+      label: 'Network Growth', 
+      value: statsLoading ? 'Loading...' : `${platformStats.networkGrowthRate}%`, 
+      icon: Zap 
+    }
   ];
 
   return (

@@ -18,17 +18,21 @@ import {
   formatCurrency,
   formatPercentage 
 } from '../utils/platformUtils';
+import { goatApi } from '../api';
 
 const Referrals = () => {
   const { isConnected, account } = useWallet();
   const [referralCode, setReferralCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [referralStats, setReferralStats] = useState({
-    totalReferrals: 15,
-    activeReferrals: 12,
-    totalEarnings: 3250,
-    monthlyEarnings: 485
+    totalReferrals: 0,
+    activeReferrals: 0,
+    totalEarnings: 0,
+    monthlyEarnings: 0
   });
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [networkTree, setNetworkTree] = useState([
     { 

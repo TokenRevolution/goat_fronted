@@ -1,12 +1,24 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
+import WalletConnectModal from './WalletConnectModal';
 import { Trophy, Wallet, Users, Home, BarChart3, Menu, X } from 'lucide-react';
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isConnected, account, connectWallet, disconnectWallet } = useWallet();
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const { 
+    isConnected, 
+    account, 
+    connectWalletConnect, 
+    disconnectWallet, 
+    switchWallet, 
+    reconnectWallet, 
+    providerType, 
+    username 
+  } = useWallet();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
@@ -18,15 +30,63 @@ const Navbar = () => {
 
   const handleWalletAction = async () => {
     if (isConnected) {
-      disconnectWallet();
+      console.log('[DEBUG] Navbar: Disconnecting wallet');
+      await disconnectWallet();
     } else {
-      await connectWallet();
+      console.log('[DEBUG] Navbar: Opening wallet selection modal...');
+      setIsWalletModalOpen(true);
+    }
+  };
+
+  const handleConnectWallet = async () => {
+    console.log('[DEBUG] Navbar: Connecting wallet via WalletConnect...');
+    setIsWalletModalOpen(false);
+    
+    const result = await connectWalletConnect();
+    console.log('[DEBUG] Navbar: Wallet connection result:', result);
+    
+    // Handle registration redirect - this will be handled by Home.js useEffect
+    if (result?.success && result?.isRegistered === false) {
+      console.log('[DEBUG] Navbar: User not registered, Home.js will handle redirect');
+    } else if (result?.success && result?.isRegistered === true) {
+      console.log('[DEBUG] Navbar: User already registered');
+    } else {
+      console.log('[DEBUG] Navbar: Wallet connection failed');
+    }
+  };
+
+  const handleSwitchWallet = async () => {
+    console.log('[DEBUG] Navbar: Switching wallet...');
+    setIsWalletModalOpen(false);
+    
+    const result = await switchWallet();
+    console.log('[DEBUG] Navbar: Wallet switch result:', result);
+  };
+
+  const handleReconnectWallet = async () => {
+    console.log('[DEBUG] Navbar: Reconnecting wallet...');
+    
+    const result = await reconnectWallet();
+    console.log('[DEBUG] Navbar: Wallet reconnect result:', result);
+  };
+
+  const getWalletDisplayName = () => {
+    if (!providerType) return 'Unknown';
+    
+    switch (providerType) {
+      case 'metamask-direct':
+        return 'MetaMask';
+      case 'unified':
+        return 'WalletConnect';
+      default:
+        return 'Wallet';
     }
   };
 
   const isActive = (path) => location.pathname === path;
 
   return (
+    <>
     <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-goat-gold/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -65,8 +125,12 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-4">
             {isConnected ? (
               <div className="flex items-center space-x-3">
-                <div className="text-sm text-gray-300">
-                  {account?.slice(0, 6)}...{account?.slice(-4)}
+                <div className="text-sm">
+                  {username ? (
+                    <span className="text-goat-gold font-semibold">{username}</span>
+                  ) : (
+                    <span className="text-gray-300">{account?.slice(0, 6)}...{account?.slice(-4)}</span>
+                  )}
                 </div>
                 <button
                   onClick={handleWalletAction}
@@ -124,8 +188,12 @@ const Navbar = () => {
             <div className="pt-4 border-t border-gray-700">
               {isConnected ? (
                 <div className="space-y-3">
-                  <div className="text-sm text-gray-300 px-4">
-                    {account?.slice(0, 6)}...{account?.slice(-4)}
+                  <div className="text-sm px-4">
+                    {username ? (
+                      <span className="text-goat-gold font-semibold">{username}</span>
+                    ) : (
+                      <span className="text-gray-300">{account?.slice(0, 6)}...{account?.slice(-4)}</span>
+                    )}
                   </div>
                   <button
                     onClick={() => {
@@ -153,6 +221,19 @@ const Navbar = () => {
         </div>
       )}
     </nav>
+    
+    {/* Wallet Connection Modal */}
+    <WalletConnectModal
+      isOpen={isWalletModalOpen}
+      onClose={() => setIsWalletModalOpen(false)}
+      onConnectWallet={handleConnectWallet}
+      onSwitchWallet={handleSwitchWallet}
+      onReconnectWallet={handleReconnectWallet}
+      isConnected={isConnected}
+      currentProvider={providerType}
+      walletDisplayName={getWalletDisplayName()}
+    />
+    </>
   );
 };
 

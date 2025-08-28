@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useWallet } from '../context/WalletContext';
 import { 
   TrendingUp, 
@@ -25,49 +25,196 @@ import {
   formatCurrency,
   formatPercentage 
 } from '../utils/platformUtils';
+import { goatApi } from '../api';
+import { makeApiRequest, cancelUserRequests } from '../utils/ApiManager';
 
 const Dashboard = () => {
+  console.log('[DEBUG] Dashboard: Component mounting...');
   const { isConnected, account } = useWallet();
+  console.log('[DEBUG] Dashboard: isConnected =', isConnected, 'account =', account);
   const [userStats, setUserStats] = useState({
-    totalDeposits: 2500,
-    personalDeposits: 2500,
-    monthlyEarnings: 375,
-    dailyEarnings: 12.5,
-    accumulatedEarnings: 187.5,
-    totalReferrals: 12,
-    networkValue: 45000,
-    currentRank: 'Nuovo',
-    rankLevel: 0,
-    nextRankProgress: 50,
-    lastCashout: '2024-01-10',
+    totalDeposits: 0,
+    personalDeposits: 0,
+    monthlyEarnings: 0,
+    dailyEarnings: 0,
+    accumulatedEarnings: 0,
+    totalReferrals: 0,
+    networkValue: 0,
+    currentRank: 'Pulcini',
+    rankLevel: 1,
+    nextRankProgress: 0,
+    lastCashout: null,
     pendingCashout: 0,
-    totalCashouts: 8
+    totalCashouts: 0
   });
 
-  const [recentActivity, setRecentActivity] = useState([
-    { type: 'deposit', amount: 500, date: '2024-01-15', status: 'completed', time: '14:30' },
-    { type: 'referral_bonus', amount: 45, date: '2024-01-14', status: 'completed', time: '09:15' },
-    { type: 'cashout', amount: 250, date: '2024-01-12', status: 'completed', time: '23:45' },
-    { type: 'monthly_return', amount: 300, date: '2024-01-10', status: 'completed', time: '00:00' },
-    { type: 'referral', amount: 1000, date: '2024-01-08', status: 'completed', time: '16:20' }
-  ]);
-
+  const [recentActivity, setRecentActivity] = useState([]);
   const [networkOverview, setNetworkOverview] = useState({
-    directReferrals: 8,
-    indirectReferrals: 4,
-    totalNetworkDeposits: 45000,
-    averageDeposit: 3750
+    directReferrals: 0,
+    indirectReferrals: 0,
+    totalNetworkDeposits: 0,
+    averageDeposit: 0
   });
 
-  useEffect(() => {
-    if (!isConnected) {
-      // Redirect or show connect wallet message
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Refs for managing API calls and preventing race conditions
+  const abortControllerRef = useRef(null);
+  const fetchTimeoutRef = useRef(null);
+  const lastFetchParams = useRef({ isConnected: null, account: null });
+
+  // Serialized fetch function using Global API Manager to prevent rate limiting
+  const fetchDashboardData = useCallback(async (isConnected, account) => {
+    // Cancel any existing timeout
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+
+    // Check if this is the same as the last fetch to avoid duplicates
+    const paramsChanged = lastFetchParams.current.isConnected !== isConnected || 
+                         lastFetchParams.current.account !== account;
+    
+    if (!paramsChanged) {
+      console.log('[DEBUG] Dashboard: Skipping duplicate fetch request');
       return;
     }
+
+    lastFetchParams.current = { isConnected, account };
+
+    if (!isConnected) {
+      console.log('[DEBUG] Dashboard: Not connected, setting loading to false');
+      setLoading(false);
+      return;
+    }
+
+    if (!account) {
+      console.log('[DEBUG] Dashboard: No account available, setting loading to false');
+      setLoading(false);
+      return;
+    }
+
+    // Cancel any existing requests for this user before starting new ones
+    cancelUserRequests(account);
+
+    // Debounce the actual API call by 500ms
+    fetchTimeoutRef.current = setTimeout(async () => {
+      try {
+        console.log('[DEBUG] Dashboard: Starting serialized fetch for account:', account);
+        setLoading(true);
+        setError(null);
+
+        // Make API calls ONE AT A TIME using the global rate limiter
+        // Priority: 1=highest, 10=normal, 20=lowest
+        
+        console.log('[DEBUG] Dashboard: Fetching deposits...');
+        const depositsResponse = await makeApiRequest(
+          `deposits_${account}`,
+          () => goatApi.deposits.getDepositStats(account),
+          1 // Highest priority
+        );
+
+        console.log('[DEBUG] Dashboard: Fetching referrals...');
+        const referralsResponse = await makeApiRequest(
+          `referrals_${account}`,
+          () => goatApi.referrals.getReferralStats(account),
+          2
+        );
+
+        console.log('[DEBUG] Dashboard: Fetching trophies...');
+        const trophiesResponse = await makeApiRequest(
+          `trophies_${account}`,
+          () => goatApi.trophies.getUserTrophies(account),
+          3
+        );
+
+        console.log('[DEBUG] Dashboard: Fetching transactions...');
+        const transactionsResponse = await makeApiRequest(
+          `transactions_${account}`,
+          () => goatApi.wallet.getTransactions(account, 1, 5),
+          4 // Lowest priority
+        );
+
+        console.log('[DEBUG] Dashboard: All API responses received successfully');
+
+        // Update user stats
+        setUserStats(prevStats => ({
+          ...prevStats,
+          totalDeposits: depositsResponse.stats?.totalDeposits || 0,
+          personalDeposits: depositsResponse.stats?.totalDeposits || 0,
+          monthlyEarnings: depositsResponse.stats?.monthlyReturn || 0,
+          dailyEarnings: depositsResponse.stats?.dailyReturn || 0,
+          accumulatedEarnings: depositsResponse.stats?.accumulatedEarnings || 0,
+          totalReferrals: referralsResponse.stats?.totalReferrals || 0,
+          networkValue: referralsResponse.stats?.networkValue || 0,
+          currentRank: trophiesResponse.currentLevel || 'Pulcini',
+          rankLevel: trophiesResponse.currentLevel || 1,
+          nextRankProgress: trophiesResponse.nextTrophy?.progress || 0
+        }));
+
+        // Update network overview
+        setNetworkOverview({
+          directReferrals: referralsResponse.stats?.directReferrals || 0,
+          indirectReferrals: referralsResponse.stats?.indirectReferrals || 0,
+          totalNetworkDeposits: referralsResponse.stats?.networkValue || 0,
+          averageDeposit: referralsResponse.stats?.averageDepositPerReferral || 0
+        });
+
+        // Update recent activity with transactions
+        if (transactionsResponse.transactions) {
+          setRecentActivity(transactionsResponse.transactions.map(tx => ({
+            type: tx.type,
+            amount: tx.amount,
+            date: new Date(tx.created_at).toISOString().split('T')[0],
+            status: tx.status,
+            time: new Date(tx.created_at).toLocaleTimeString()
+          })));
+        }
+
+        console.log('[DEBUG] Dashboard: Data updated successfully');
+
+      } catch (error) {
+        if (error.message === 'Request cancelled' || error.message === 'All requests cancelled') {
+          console.log('[DEBUG] Dashboard: Request was cancelled');
+          return;
+        }
+
+        console.error('[DEBUG] Dashboard: Error fetching dashboard data:', error);
+        
+        // Check for rate limiting error
+        if (error.message && error.message.includes('Too many requests')) {
+          setError('Loading data... The system is busy, please wait...');
+        } else {
+          setError(error.message || 'Failed to load dashboard data');
+        }
+      } finally {
+        setLoading(false);
+      }
+    }, 500); // 500ms debounce
+  }, []);
+
+  // Effect with correct dependencies and cleanup
+  useEffect(() => {
+    console.log('[DEBUG] Dashboard: useEffect triggered - isConnected:', isConnected, 'account:', account);
     
-    // In a real app, fetch user data from blockchain/API
-    // For now, using mock data
-  }, [isConnected]);
+    fetchDashboardData(isConnected, account);
+
+    // Cleanup function
+    return () => {
+      console.log('[DEBUG] Dashboard: Cleaning up...');
+      
+      // Clear timeout
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
+      
+      // Cancel any API requests for this user
+      if (account) {
+        cancelUserRequests(account);
+      }
+    };
+  }, [isConnected, account, fetchDashboardData]); // ✅ Correct dependencies!
 
   if (!isConnected) {
     return (
@@ -75,6 +222,35 @@ const Dashboard = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-300 mb-4">Connect Your Wallet</h2>
           <p className="text-gray-400">Please connect your wallet to view your dashboard</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-goat-gold mx-auto mb-4"></div>
+          <h2 className="text-xl text-gray-300">Loading dashboard...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">⚠️</div>
+          <h2 className="text-xl text-gray-300 mb-2">Error loading dashboard</h2>
+          <p className="text-gray-400 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-goat-gold text-black rounded-lg hover:bg-opacity-80"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );

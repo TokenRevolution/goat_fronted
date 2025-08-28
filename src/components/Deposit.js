@@ -18,14 +18,16 @@ import {
   formatCurrency,
   formatPercentage 
 } from '../utils/platformUtils';
+import { goatApi } from '../api';
 
 const Deposit = () => {
-  const { isConnected, account, sendTransaction } = useWallet();
+  const { isConnected, account, sendTransaction, usdtBalance, getUSDTBalance } = useWallet();
   const [depositAmount, setDepositAmount] = useState('');
   const [isDonationEnabled, setIsDonationEnabled] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState(null);
   const [validationError, setValidationError] = useState('');
+  const [targetWallet, setTargetWallet] = useState(null);
 
   const returnTiers = [
     { min: 0, max: 100, basePercentage: 8, maxPercentage: 9, color: 'from-green-400 to-green-600' },
@@ -33,6 +35,23 @@ const Deposit = () => {
     { min: 500, max: 1000, basePercentage: 12, maxPercentage: 13, color: 'from-purple-400 to-purple-600' },
     { min: 1000, max: Infinity, basePercentage: 15, maxPercentage: 16, color: 'from-goat-gold to-orange-500' }
   ];
+
+  // Load target wallet address on component mount
+  useEffect(() => {
+    const loadTargetWallet = async () => {
+      try {
+        const response = await goatApi.wallet.getTargetAddress();
+        if (response.success) {
+          setTargetWallet(response.targetAddress);
+          console.log('[DEBUG] Deposit: Target wallet loaded:', response.targetAddress);
+        }
+      } catch (error) {
+        console.error('[DEBUG] Deposit: Error loading target wallet:', error);
+      }
+    };
+
+    loadTargetWallet();
+  }, []);
 
   const handleAmountChange = (e) => {
     const value = e.target.value;
@@ -45,8 +64,9 @@ const Deposit = () => {
   };
 
   const handleDeposit = async () => {
-    const validation = validateDeposit(depositAmount);
-    if (!validation.valid) {
+    // Use API validation instead of utils
+    const validation = goatApi.deposits.validateDepositAmount(parseFloat(depositAmount));
+    if (!validation.isValid) {
       setValidationError(validation.message);
       return;
     }
@@ -56,26 +76,58 @@ const Deposit = () => {
       return;
     }
 
+    // Check USDT balance
+    const usdtBal = parseFloat(usdtBalance || '0');
+    const depositAmt = parseFloat(depositAmount);
+    
+    if (usdtBal < depositAmt) {
+      setValidationError(`Insufficient USDT balance. You have ${formatCurrency(usdtBal)} USDT, need ${formatCurrency(depositAmt)} USDT`);
+      return;
+    }
+
     setIsProcessing(true);
     setTransactionStatus(null);
 
     try {
-      // In a real app, this would be the GOAT platform contract address
-      const platformAddress = '0x1234567890123456789012345678901234567890';
+      // Use target wallet address from backend
+      if (!targetWallet) {
+        throw new Error('Target wallet address not available. Please refresh the page.');
+      }
       
+      console.log('[DEBUG] Deposit: Sending to target wallet:', targetWallet);
       const finalAmount = parseFloat(depositAmount);
-      const result = await sendTransaction(platformAddress, finalAmount);
+      const result = await sendTransaction(targetWallet, finalAmount);
       
       if (result.success) {
-        const donationMessage = isDonationEnabled 
-          ? ` (includes ${formatCurrency(donationInfo.donation)} donation)` 
-          : '';
+        // Create deposit record in backend
+        try {
+          const depositResponse = await goatApi.deposits.createDeposit({
+            amount: finalAmount,
+            walletAddress: account,
+            transactionHash: result.hash,
+            token: 'USDT'
+          });
+
+          const donationMessage = isDonationEnabled 
+            ? ` (includes ${formatCurrency(donationInfo.donation)} donation)` 
+            : '';
+          
+          setTransactionStatus({
+            type: 'success',
+            message: `Deposit successful!${donationMessage}`,
+            hash: result.hash,
+            depositId: depositResponse.deposit?.id
+          });
+        } catch (apiError) {
+          // Transaction succeeded but API call failed
+          console.error('API error after successful transaction:', apiError);
+          setTransactionStatus({
+            type: 'warning',
+            message: `Transaction successful but there was an issue recording it. Please contact support with hash: ${result.hash}`,
+            hash: result.hash
+          });
+        }
         
-        setTransactionStatus({
-          type: 'success',
-          message: `Deposit successful!${donationMessage}`,
-          hash: result.hash
-        });
         setDepositAmount('');
         setIsDonationEnabled(false);
       } else {
@@ -132,9 +184,14 @@ const Deposit = () => {
             <h2 className="text-2xl font-bold text-white mb-6">Deposit Amount</h2>
             
             <div className="mb-6">
-              <label className="block text-gray-300 text-sm font-medium mb-2">
-                Amount (USD)
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-gray-300 text-sm font-medium">
+                  Amount (USD)
+                </label>
+                <span className="text-sm text-gray-400">
+                  Balance: <span className="text-goat-gold font-medium">{formatCurrency(parseFloat(usdtBalance || '0'))} USDT</span>
+                </span>
+              </div>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input

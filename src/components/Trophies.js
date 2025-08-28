@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWallet } from '../context/WalletContext';
+import { goatApi } from '../api';
 import { 
   Trophy, 
   Star, 
@@ -21,9 +22,9 @@ import {
 const Trophies = () => {
   const { isConnected, account } = useWallet();
   const [userProgress, setUserProgress] = useState({
-    currentLevel: 0,
+    currentLevel: 1,
     totalNetworkDeposits: 2500,
-    unlockedTrophies: [0],
+    unlockedTrophies: [1],
     achievements: {
       firstDeposit: true,
       firstReferral: false,
@@ -34,113 +35,79 @@ const Trophies = () => {
       goatLegend: false
     }
   });
+  const [trophyLevels, setTrophyLevels] = useState([]);
+  const [trophiesLoading, setTrophiesLoading] = useState(true);
 
-  const trophyLevels = [
-    {
-      id: 0,
-      name: 'Nuovo',
-      requirement: '< $5,000 Network',
-      personalDeposit: '$0',
-      requiredAmount: 5000,
-      personalRequired: 0,
-      icon: '⚽',
-      color: 'from-gray-400 to-gray-600',
-      description: 'Welcome to GOAT platform',
-      benefits: ['Basic Access', 'Entry Level Features', 'Starter Badge'],
-      unlocked: true
-    },
-    {
-      id: 1,
-      name: 'Pulcini',
-      requirement: '$5K - $10K Network',
-      personalDeposit: '$1,000',
-      requiredAmount: 10000,
-      personalRequired: 1000,
-      icon: '🥉',
-      color: 'from-green-400 to-green-600',
-      description: 'First steps in the football world',
-      benefits: ['8-10% Monthly Returns', 'Basic Network Access', 'Bronze Trophy', '🎁 Carta WeFi Gratuita'],
-      unlocked: false
-    },
-    {
-      id: 2,
-      name: 'Esordienti',
-      requirement: '$10K - $20K Network',
-      personalDeposit: '$3,000',
-      requiredAmount: 20000,
-      personalRequired: 3000,
-      icon: '🥈',
-      color: 'from-blue-400 to-blue-600',
-      description: 'Rising talent in the game',
-      benefits: ['10-12% Monthly Returns', 'Enhanced Network Tools', 'Silver Trophy'],
-      unlocked: false
-    },
-    {
-      id: 3,
-      name: 'Juniores',
-      requirement: '$20K - $80K Network',
-      personalDeposit: '$10,000',
-      requiredAmount: 80000,
-      personalRequired: 10000,
-      icon: '🥇',
-      color: 'from-purple-400 to-purple-600',
-      description: 'Junior champion level',
-      benefits: ['12% Monthly Returns', 'Advanced Analytics', 'Gold Trophy'],
-      unlocked: false
-    },
-    {
-      id: 4,
-      name: 'Eccellenza',
-      requirement: '$80K - $150K Network',
-      personalDeposit: '$15,000',
-      requiredAmount: 150000,
-      personalRequired: 15000,
-      icon: '🏆',
-      color: 'from-yellow-400 to-yellow-600',
-      description: 'Excellence in performance',
-      benefits: ['12-15% Monthly Returns', 'Premium Support', 'Excellence Trophy'],
-      unlocked: false
-    },
-    {
-      id: 5,
-      name: 'Serie C',
-      requirement: '$150K - $500K Network',
-      personalDeposit: '$25,000',
-      requiredAmount: 500000,
-      personalRequired: 25000,
-      icon: '🏅',
-      color: 'from-orange-400 to-orange-600',
-      description: 'Professional league level',
-      benefits: ['15% Monthly Returns', 'VIP Access', 'Professional Medal'],
-      unlocked: false
-    },
-    {
-      id: 6,
-      name: 'Serie B',
-      requirement: '$500K - $1.5M Network',
-      personalDeposit: '$50,000',
-      requiredAmount: 1500000,
-      personalRequired: 50000,
-      icon: '👑',
-      color: 'from-red-400 to-red-600',
-      description: 'Elite championship status',
-      benefits: ['15% Monthly Returns', 'Elite Network', 'Championship Crown'],
-      unlocked: false
-    },
-    {
-      id: 7,
-      name: 'Serie A',
-      requirement: '$1.5M+ Network',
-      personalDeposit: '$100,000',
-      requiredAmount: Infinity,
-      personalRequired: 100000,
-      icon: '💎',
-      color: 'from-goat-gold to-orange-500',
-      description: 'Greatest of All Time',
-      benefits: ['15% Monthly Returns', 'GOAT Status', 'Diamond Trophy', 'Exclusive Events'],
-      unlocked: false
-    }
-  ];
+  // Load trophies from API
+  useEffect(() => {
+    const loadTrophies = async () => {
+      try {
+        console.log('[DEBUG] Trophies: Loading trophies from API...');
+        const response = await goatApi.trophies.getAllTrophies();
+        if (response.success) {
+          // Transform API data to component format
+          const transformedTrophies = response.trophies.map(trophy => ({
+            id: trophy.id,
+            name: trophy.name,
+            level: trophy.level,
+            requirement: `$${(trophy.requiredNetworkDeposits / 1000).toFixed(0)}K Network + $${(trophy.requiredPersonalDeposits / 1000).toFixed(0)}K Personal`,
+            personalDeposit: `$${trophy.requiredPersonalDeposits.toLocaleString()}`,
+            networkDeposit: `$${trophy.requiredNetworkDeposits.toLocaleString()}`,
+            requiredPersonalAmount: trophy.requiredPersonalDeposits,
+            requiredNetworkAmount: trophy.requiredNetworkDeposits,
+            requiredReferrals: trophy.requiredReferrals,
+            icon: trophy.icon,
+            color: getColorByLevel(trophy.level),
+            description: trophy.description,
+            benefits: getBenefitsByLevel(trophy.level, trophy.rewards.bonusRate),
+            unlocked: false // Will be calculated based on user progress
+          }));
+          setTrophyLevels(transformedTrophies);
+          console.log('[DEBUG] Trophies: Loaded', transformedTrophies.length, 'trophy levels');
+        }
+      } catch (error) {
+        console.error('[DEBUG] Trophies: Error loading trophies:', error);
+        // Keep empty array on error
+      } finally {
+        setTrophiesLoading(false);
+      }
+    };
+
+    loadTrophies();
+  }, []);
+
+  // Helper functions for trophy display
+  const getColorByLevel = (level) => {
+    const colors = [
+      'from-gray-400 to-gray-600',        // Level 0 (if exists)
+      'from-green-400 to-green-600',      // Level 1 - Pulcini
+      'from-blue-400 to-blue-600',        // Level 2 - Esordienti
+      'from-purple-400 to-purple-600',    // Level 3 - Giovanissimi
+      'from-yellow-400 to-yellow-600',    // Level 4 - Allievi
+      'from-pink-400 to-pink-600',        // Level 5 - Primavera
+      'from-orange-400 to-orange-600',    // Level 6 - Serie C
+      'from-red-400 to-red-600',          // Level 7 - Serie B
+      'from-goat-gold to-orange-500'      // Level 8 - Serie A
+    ];
+    return colors[level] || 'from-gray-400 to-gray-600';
+  };
+
+  const getBenefitsByLevel = (level, bonusRate) => {
+    const baseBenefits = [
+      ['Basic Access', 'Entry Level Features', 'Starter Badge'],
+      [`${(bonusRate * 100).toFixed(0)}% Monthly Returns`, 'Basic Network Access', 'Bronze Trophy', '🎁 Carta WeFi Gratuita'],
+      [`${(bonusRate * 100).toFixed(0)}% Monthly Returns`, 'Enhanced Network Tools', 'Silver Trophy'],
+      [`${(bonusRate * 100).toFixed(0)}% Monthly Returns`, 'Advanced Analytics', 'Gold Trophy'],
+      [`${(bonusRate * 100).toFixed(0)}% Monthly Returns`, 'Premium Support', 'Excellence Trophy'],
+      [`${(bonusRate * 100).toFixed(0)}% Monthly Returns`, 'VIP Access', 'Professional Medal', 'Elite Network'],
+      [`${(bonusRate * 100).toFixed(0)}% Monthly Returns`, 'Diamond Status', 'Exclusive Rewards', 'Priority Support'],
+      [`${(bonusRate * 100).toFixed(0)}% Monthly Returns`, 'Championship Status', 'Elite Network', 'Special Events'],
+      [`${(bonusRate * 100).toFixed(0)}% Monthly Returns`, 'GOAT Status', 'Legendary Trophy', 'Exclusive Events', 'VIP Access']
+    ];
+    return baseBenefits[level] || [`${(bonusRate * 100).toFixed(0)}% Monthly Returns`, 'Basic Benefits'];
+  };
+
+
 
   const achievements = [
     {
@@ -207,22 +174,23 @@ const Trophies = () => {
     // Update trophy unlock status based on user progress
     const updatedLevels = trophyLevels.map(level => ({
       ...level,
-      unlocked: userProgress.unlockedTrophies.includes(level.id)
+      unlocked: userProgress.unlockedTrophies.includes(level.level)
     }));
     
     // In a real app, fetch user progress from blockchain/API
   }, [isConnected, userProgress]);
 
   const getCurrentProgress = () => {
-    const currentTrophy = trophyLevels.find(trophy => trophy.id === userProgress.currentLevel);
-    const nextTrophy = trophyLevels.find(trophy => trophy.id === userProgress.currentLevel + 1);
+    const currentTrophy = trophyLevels.find(trophy => trophy.level === userProgress.currentLevel);
+    const nextTrophy = trophyLevels.find(trophy => trophy.level === userProgress.currentLevel + 1);
     
     if (!nextTrophy) return { progress: 100, remaining: 0 };
     
-    const progress = (userProgress.totalNetworkDeposits / nextTrophy.requiredAmount) * 100;
-    const remaining = nextTrophy.requiredAmount - userProgress.totalNetworkDeposits;
+    // Use network deposits for progress calculation
+    const progress = (userProgress.totalNetworkDeposits / nextTrophy.requiredNetworkAmount) * 100;
+    const remaining = nextTrophy.requiredNetworkAmount - userProgress.totalNetworkDeposits;
     
-    return { progress: Math.min(progress, 100), remaining };
+    return { progress: Math.min(progress, 100), remaining: Math.max(remaining, 0) };
   };
 
   const { progress, remaining } = getCurrentProgress();
@@ -254,20 +222,20 @@ const Trophies = () => {
             
             <div className="flex items-center justify-center mb-6">
               <div className="text-6xl mr-4">
-                {trophyLevels[userProgress.currentLevel - 1]?.icon}
+                {trophyLevels.find(t => t.level === userProgress.currentLevel)?.icon || '🏆'}
               </div>
               <div className="text-left">
                 <h3 className="text-3xl font-bold text-goat-gold">
-                  {trophyLevels[userProgress.currentLevel - 1]?.name}
+                  {trophyLevels.find(t => t.level === userProgress.currentLevel)?.name || 'Starting Level'}
                 </h3>
-                <p className="text-gray-300">Level {userProgress.currentLevel} of 7</p>
+                <p className="text-gray-300">Level {userProgress.currentLevel} of 8</p>
                 <p className="text-gray-400">
                   Network Value: {formatCurrency(userProgress.totalNetworkDeposits)}
                 </p>
               </div>
             </div>
 
-            {userProgress.currentLevel < 7 && (
+            {userProgress.currentLevel < 8 && (
               <div className="max-w-md mx-auto">
                 <div className="flex justify-between text-sm text-gray-400 mb-2">
                   <span>Progress to next trophy</span>
@@ -280,7 +248,7 @@ const Trophies = () => {
                   ></div>
                 </div>
                 <p className="text-gray-400 text-sm">
-                  {formatCurrency(remaining)} remaining to unlock {trophyLevels[userProgress.currentLevel]?.name}
+                  {formatCurrency(remaining)} remaining to unlock {trophyLevels.find(t => t.level === userProgress.currentLevel + 1)?.name}
                 </p>
               </div>
             )}
@@ -290,8 +258,17 @@ const Trophies = () => {
         {/* Trophy Levels */}
         <div className="mb-16">
           <h2 className="text-3xl font-bold text-white text-center mb-8">Trophy Levels</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {trophyLevels.map((trophy) => (
+          
+          {trophiesLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-goat-gold mx-auto mb-4"></div>
+                <p className="text-gray-300">Loading Trophy Requirements...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {trophyLevels.map((trophy) => (
               <div 
                 key={trophy.id} 
                 className={`glass rounded-xl p-6 text-center trophy-container ${
@@ -316,8 +293,20 @@ const Trophies = () => {
                 </h3>
                 
                 <div className="mb-3">
-                  <p className="text-gray-400 text-sm">{trophy.requirement}</p>
-                  <p className="text-gray-400 text-xs">Personal: {trophy.personalDeposit}</p>
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-xs">Personal Deposit:</span>
+                      <span className="text-white text-sm font-semibold">{trophy.personalDeposit}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-xs">Network Deposit:</span>
+                      <span className="text-white text-sm font-semibold">{trophy.networkDeposit}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-xs">Referrals:</span>
+                      <span className="text-white text-sm font-semibold">{trophy.requiredReferrals}+</span>
+                    </div>
+                  </div>
                 </div>
                 <p className="text-gray-300 text-sm mb-4">{trophy.description}</p>
                 
@@ -337,7 +326,8 @@ const Trophies = () => {
                 )}
               </div>
             ))}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Achievements */}

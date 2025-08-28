@@ -7,6 +7,8 @@ import Deposit from './components/Deposit';
 import Referrals from './components/Referrals';
 import Trophies from './components/Trophies';
 import Wallet from './components/Wallet';
+import Registration from './components/Registration';
+import NetworkWarning from './components/NetworkWarning';
 import { WalletProvider } from './context/WalletContext';
 import './App.css';
 
@@ -37,10 +39,12 @@ function App() {
     <WalletProvider>
       <Router>
         <div className="App min-h-screen bg-gradient-to-br from-goat-dark to-gray-900">
+          <NetworkWarning />
           <Navbar />
           <main className="pt-20">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/register" element={<Registration />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/deposit" element={<Deposit />} />
               <Route path="/referrals" element={<Referrals />} />
