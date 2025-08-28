@@ -93,8 +93,9 @@ const Dashboard = () => {
         totalDeposits: deposits.totalDeposits,
         personalDeposits: deposits.totalDeposits,
         monthlyEarnings: deposits.monthlyReturn,
-        dailyEarnings: deposits.dailyReturn,
-        accumulatedEarnings: earnings.accumulated,
+        // BUSINESS LOGIC: Personal deposits = monthly cashout only, daily earnings = from network only
+        dailyEarnings: network.dailyNetworkEarnings || 0,
+        accumulatedEarnings: network.accumulatedNetworkEarnings || 0,
         
         // DUAL CREDIT SYSTEM DATA
         personalCapitalReturns,
@@ -121,8 +122,11 @@ const Dashboard = () => {
       setNetworkOverview({
         directReferrals: network.directReferrals || 0,
         indirectReferrals: (network.totalNetworkSize || 0) - (network.directReferrals || 0),
-        totalNetworkDeposits: network.teamRevenue,
-        averageDeposit: network.directReferrals > 0 ? network.teamRevenue / network.directReferrals : 0
+        totalNetworkDeposits: network.teamRevenue || 0,
+        firstLineDeposits: network.firstLineRevenue || 0,
+        averageDeposit: network.directReferrals > 0 ? (network.firstLineRevenue || 0) / network.directReferrals : 0,
+        dailyNetworkEarnings: network.dailyNetworkEarnings || 0,
+        accumulatedNetworkEarnings: network.accumulatedNetworkEarnings || 0
       });
 
       // Create recent activity from earnings
@@ -460,29 +464,27 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
               <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-blue-500/20">
                 <div className="text-2xl sm:text-3xl font-bold text-blue-400 mb-2">
-                  {formatCurrency(userStats.dailyNetworkEarnings?.totalDaily || 0)}
+                  {formatCurrency(userStats.dailyEarnings || 0)}
                 </div>
-                <div className="text-gray-300 font-medium text-sm sm:text-base">Today's Earning</div>
-                <div className="text-xs text-gray-400 mt-1">Auto-credited daily</div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Daily Network Earnings</div>
+                <div className="text-xs text-gray-400 mt-1">From your network deposits</div>
               </div>
               
               <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-purple-500/20">
                 <div className="text-2xl sm:text-3xl font-bold text-purple-400 mb-2">
-                  {formatCurrency(userStats.dailyNetworkEarnings?.networkBonus || 0)}
+                  {formatCurrency(userStats.accumulatedEarnings || 0)}
                 </div>
-                <div className="text-gray-300 font-medium text-sm sm:text-base">Network Bonus</div>
-                <div className="text-xs text-gray-400 mt-1">
-                  {((userStats.userLevel?.current?.networkBonus || 0) * 100).toFixed(1)}% rate
-                </div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Accumulated Earnings</div>
+                <div className="text-xs text-gray-400 mt-1">Total earnings to date</div>
               </div>
               
               <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-cyan-500/20">
                 <div className="text-2xl sm:text-3xl font-bold text-cyan-400 mb-2">
-                  {formatCurrency(userStats.dailyNetworkEarnings?.sameLevelBonus || 0)}
+                  {formatCurrency(networkOverview.totalNetworkDeposits || 0)}
                 </div>
-                <div className="text-gray-300 font-medium text-sm sm:text-base">Same Level Bonus</div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Total Network Deposits</div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {((userStats.userLevel?.current?.sameLevel || 0) * 100).toFixed(1)}% rate
+                  {((userStats.userLevel?.current?.network_bonus_rate || 0) * 100).toFixed(1)}% bonus rate
                 </div>
               </div>
             </div>

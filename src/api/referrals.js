@@ -19,20 +19,28 @@ export const referralsApi = {
         try {
             console.log('[DEBUG] ReferralAPI: Getting stats for address:', walletAddress);
             
-            // Use dashboard API to get referral data
-            const dashboardResponse = await require('./goat').goatApi.getUserDashboardData(walletAddress);
+            if (!walletAddress) {
+                throw new Error('Wallet address is required');
+            }
+
+            // Call the dedicated referrals stats endpoint
+            const response = await fetch(`${API_ENDPOINTS.REFERRALS.STATS}?address=${walletAddress}`);
+            const data = await response.json();
             
-            if (dashboardResponse.success && dashboardResponse.data) {
-                const { network } = dashboardResponse.data;
-                
+            if (data.success && data.stats) {
                 return {
                     success: true,
                     stats: {
-                        totalReferrals: network.directReferrals || 0,
-                        activeReferrals: network.directReferrals || 0,
-                        totalEarnings: network.referralEarnings || 0,
-                        monthlyEarnings: network.monthlyReferralEarnings || 0,
-                        referralBonus: network.networkBonus || 0
+                        totalReferrals: data.stats.totalReferrals || 0,
+                        directReferrals: data.stats.directReferrals || 0,
+                        indirectReferrals: data.stats.indirectReferrals || 0,
+                        activeReferrals: data.stats.directReferrals || 0,
+                        totalEarnings: data.stats.referralEarnings || 0,
+                        networkValue: data.stats.networkValue || 0,
+                        directLineValue: data.stats.directLineValue || 0,
+                        monthlyEarnings: data.stats.referralEarnings || 0,
+                        referralBonus: data.stats.networkValue || 0,
+                        averageDepositPerReferral: data.stats.averageDepositPerReferral || 0
                     }
                 };
             }
@@ -42,10 +50,15 @@ export const referralsApi = {
                 success: true,
                 stats: {
                     totalReferrals: 0,
+                    directReferrals: 0,
+                    indirectReferrals: 0,
                     activeReferrals: 0,
                     totalEarnings: 0,
+                    networkValue: 0,
+                    directLineValue: 0,
                     monthlyEarnings: 0,
-                    referralBonus: 0
+                    referralBonus: 0,
+                    averageDepositPerReferral: 0
                 }
             };
         } catch (error) {
@@ -55,12 +68,31 @@ export const referralsApi = {
     },
 
     // Get referral network tree
-    getReferralNetwork: async () => {
+    getReferralNetwork: async (walletAddress) => {
         try {
-            const response = await apiClient.get(API_ENDPOINTS.REFERRALS.NETWORK);
-            return response;
+            console.log('[DEBUG] ReferralAPI: Getting network for address:', walletAddress);
+            
+            if (!walletAddress) {
+                throw new Error('Wallet address is required');
+            }
+
+            // Call the dedicated referrals network endpoint
+            const response = await fetch(`${API_ENDPOINTS.REFERRALS.NETWORK}?address=${walletAddress}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                return {
+                    success: true,
+                    network: data.network || {}
+                };
+            }
+
+            return {
+                success: false,
+                message: data.message || 'Failed to fetch network data'
+            };
         } catch (error) {
-            console.error('Get referral network error:', error);
+            console.error('[DEBUG] ReferralAPI: Get referral network error:', error);
             throw error;
         }
     },

@@ -93,5 +93,40 @@ export const goatApi = {
       console.error('[DEBUG] GoatAPI: Error getting platform stats:', error);
       throw error;
     }
+  },
+
+  // Deposits API
+  deposits: {
+    // Create new deposit
+    createDeposit: async (depositData) => {
+      console.log('[DEBUG] GoatAPI: Creating deposit:', depositData);
+      try {
+        const response = await apiClient.request(`${BASE_URL}/api/deposits`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(depositData)
+        });
+        console.log('[DEBUG] GoatAPI: Deposit created response:', response);
+        return response;
+      } catch (error) {
+        console.error('[DEBUG] GoatAPI: Error creating deposit:', error);
+        throw error;
+      }
+    },
+
+    // Get deposit stats by wallet address
+    getDepositStats: async (address) => {
+      console.log('[DEBUG] GoatAPI: Getting deposit stats for:', address);
+      try {
+        const response = await apiClient.request(`${BASE_URL}/api/deposits/stats?address=${address}`, { method: 'GET' });
+        console.log('[DEBUG] GoatAPI: Deposit stats response:', response);
+        return response;
+      } catch (error) {
+        console.error('[DEBUG] GoatAPI: Error getting deposit stats:', error);
+        throw error;
+      }
+    }
   }
 };

@@ -95,6 +95,33 @@ const Referrals = () => {
           }));
         }
 
+        // Get referral network tree from referrals API
+        const networkResponse = await referralsApi.getReferralNetwork(account);
+        if (networkResponse.success && networkResponse.network) {
+          const networkData = [];
+          
+          // Process all levels from the network response
+          Object.keys(networkResponse.network).forEach(levelKey => {
+            const users = networkResponse.network[levelKey];
+            users.forEach((user, index) => {
+              networkData.push({
+                id: `${levelKey}_${index}`,
+                address: `${user.address?.slice(0, 6)}...${user.address?.slice(-6)}` || 'Unknown',
+                username: user.username || 'User',
+                deposit: user.deposits || 0,
+                returnRate: 0, // TODO: Calculate based on deposits
+                earnings: user.earnings || 0,
+                level: user.level || 1,
+                status: 'active',
+                joinDate: user.joinDate || new Date().toISOString().split('T')[0]
+              });
+            });
+          });
+          
+          setNetworkTree(networkData);
+          console.log('[DEBUG] Referrals: Network tree loaded:', networkData);
+        }
+
       } catch (error) {
         console.error('[DEBUG] Referrals: Error loading referral data:', error);
         setError(error.message || 'Failed to load referral data');
@@ -182,12 +209,12 @@ const Referrals = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
           <div className="glass rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm">Total Referrals</p>
-                <p className="text-lg sm:text-2xl font-bold text-white">{referralStats.totalReferrals}</p>
+                <p className="text-gray-400 text-xs sm:text-sm">Direct Referrals</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">{referralStats.directReferrals || 0}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-400 to-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
                 <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -198,8 +225,8 @@ const Referrals = () => {
           <div className="glass rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm">Active Referrals</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-400">{referralStats.activeReferrals}</p>
+                <p className="text-gray-400 text-xs sm:text-sm">Indirect Referrals</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-400">{referralStats.indirectReferrals || 0}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
                 <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -210,8 +237,8 @@ const Referrals = () => {
           <div className="glass rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm">Total Earnings</p>
-                <p className="text-lg sm:text-2xl font-bold text-goat-gold truncate">{formatCurrency(referralStats.totalEarnings)}</p>
+                <p className="text-gray-400 text-xs sm:text-sm">First Line Deposits</p>
+                <p className="text-lg sm:text-2xl font-bold text-goat-gold truncate">{formatCurrency(referralStats.directLineValue || 0)}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-goat-gold to-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
                 <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
@@ -222,10 +249,22 @@ const Referrals = () => {
           <div className="glass rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm">Monthly Earnings</p>
-                <p className="text-lg sm:text-2xl font-bold text-white truncate">{formatCurrency(referralStats.monthlyEarnings)}</p>
+                <p className="text-gray-400 text-xs sm:text-sm">Total Network Deposits</p>
+                <p className="text-lg sm:text-2xl font-bold text-white truncate">{formatCurrency(referralStats.networkValue || 0)}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-400 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Network className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+            </div>
+          </div>
+
+          <div className="glass rounded-xl p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0 mr-3">
+                <p className="text-gray-400 text-xs sm:text-sm">Daily Network Earnings</p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-400 truncate">{formatCurrency(referralStats.totalEarnings || 0)}</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
                 <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
             </div>

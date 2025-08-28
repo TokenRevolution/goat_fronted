@@ -50,6 +50,36 @@ const Deposit = () => {
   const [transactionStatus, setTransactionStatus] = useState(null);
   const [validationError, setValidationError] = useState('');
   const [targetWallet, setTargetWallet] = useState(null);
+  const [loadingTarget, setLoadingTarget] = useState(true);
+
+  // Load target wallet from backend
+  useEffect(() => {
+    const loadTargetWallet = async () => {
+      try {
+        setLoadingTarget(true);
+        console.log('[DEBUG] Deposit: Loading target wallet from backend...');
+        
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+        const response = await fetch(`${API_URL}/api/wallet/target-address`);
+        const data = await response.json();
+        
+        if (data.success && data.targetAddress) {
+          console.log('[DEBUG] Deposit: Target wallet loaded:', data.targetAddress);
+          setTargetWallet(data.targetAddress);
+        } else {
+          throw new Error('Failed to get target address from backend');
+        }
+      } catch (error) {
+        console.error('[DEBUG] Deposit: Error loading target wallet:', error);
+        // Fallback to backend's default if API fails
+        setTargetWallet('0xC68198c07F25E9F2c104646f767b4a53f5D30c9e');
+      } finally {
+        setLoadingTarget(false);
+      }
+    };
+
+    loadTargetWallet();
+  }, []);
 
   // Use GOAT return rates with colors
   const returnTiersWithColors = RETURN_RATES.map((tier, index) => ({
@@ -63,26 +93,7 @@ const Deposit = () => {
            'from-goat-gold to-yellow-500'
   }));
 
-  // Load target wallet address on component mount
-  useEffect(() => {
-    const loadTargetWallet = async () => {
-      try {
-        // For now, use a fallback target wallet with proper checksum
-        // In production, this would come from platform settings
-        const fallbackTargetWallet = '0x742d35Cc6634C0532925a3b8D1A88C5f5c7FA98a'; // Example BSC address
-        
-        // Fix checksum using ethers
-        const checksummedAddress = ethers.utils.getAddress(fallbackTargetWallet);
-        
-        setTargetWallet(checksummedAddress);
-        console.log('[DEBUG] Deposit: Using target wallet with checksum:', checksummedAddress);
-      } catch (error) {
-        console.error('[DEBUG] Deposit: Error loading target wallet:', error);
-      }
-    };
 
-    loadTargetWallet();
-  }, []);
 
   const handleAmountChange = (e) => {
     const value = e.target.value;
@@ -123,15 +134,15 @@ const Deposit = () => {
       return;
     }
 
+    if (!targetWallet) {
+      setValidationError('Target wallet address is loading. Please wait a moment...');
+      return;
+    }
+
     setIsProcessing(true);
     setTransactionStatus(null);
 
     try {
-      // Use target wallet address from backend
-      if (!targetWallet) {
-        throw new Error('Target wallet address not available. Please refresh the page.');
-      }
-      
       console.log('[DEBUG] Deposit: Sending to target wallet:', targetWallet);
       const finalAmount = parseFloat(depositAmount);
       const result = await sendTransaction(targetWallet, finalAmount);
@@ -281,10 +292,10 @@ const Deposit = () => {
 
             <button
               onClick={handleDeposit}
-              disabled={isProcessing || !depositAmount}
+              disabled={isProcessing || !depositAmount || loadingTarget || !targetWallet}
               className="w-full bg-gradient-to-r from-goat-gold to-orange-500 hover:from-orange-500 hover:to-goat-gold text-black font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {isProcessing ? 'Processing...' : 'Make Deposit'}
+              {loadingTarget ? 'Loading...' : isProcessing ? 'Processing...' : 'Make Deposit'}
             </button>
 
             {/* Transaction Status */}
