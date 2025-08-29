@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { 
   calculatePersonalCapitalReturns,
+  calculatePersonalCapitalReturnsFromDeposits,
   calculateDailyNetworkEarnings,
   getTimeUntilCashout,
   getTimeUntilDailyCredit,
@@ -112,11 +113,24 @@ const Dashboard = () => {
       console.log('[DEBUG] Dashboard: NUOVE INFO - differenceBonus:', network?.differenceBonus);
       console.log('[DEBUG] Dashboard: NUOVE INFO - sameLevelBonusAmount:', network?.sameLevelBonusAmount);
 
-      // Calculate DUAL CREDIT SYSTEM earnings - use actual days since most recent deposit
-      const personalCapitalReturns = calculatePersonalCapitalReturns(deposits.totalDeposits, deposits.mostRecentDepositDate);
+      // Calculate DUAL CREDIT SYSTEM earnings - use ALL individual deposits for precise calculation
+      let personalCapitalReturns;
       
-      // Store deposit date for real-time updates
+      if (deposits.individualDeposits && deposits.individualDeposits.length > 0) {
+        console.log('[💰 DASHBOARD] Using NEW multi-deposit calculation...');
+        console.log('[💰 DASHBOARD] Individual deposits:', deposits.individualDeposits);
+        personalCapitalReturns = calculatePersonalCapitalReturnsFromDeposits(
+          deposits.individualDeposits, 
+          deposits.totalDeposits
+        );
+      } else {
+        console.log('[💰 DASHBOARD] Fallback to legacy single-deposit calculation...');
+        personalCapitalReturns = calculatePersonalCapitalReturns(deposits.totalDeposits, deposits.mostRecentDepositDate);
+      }
+      
+      // Store deposit data for real-time updates
       personalCapitalReturns.mostRecentDepositDate = deposits.mostRecentDepositDate;
+      personalCapitalReturns.individualDeposits = deposits.individualDeposits;
       const dailyNetworkEarnings = calculateDailyNetworkEarnings(position.current, network.teamRevenue, network.sameLevelRevenue || 0);
       const cashoutCountdown = getTimeUntilCashout();
       const networkCreditCountdown = getTimeUntilDailyCredit();
@@ -225,14 +239,27 @@ const Dashboard = () => {
   useEffect(() => {
     if (!userStats.personalDeposits || !userStats.personalCapitalReturns) return;
     
+    const individualDeposits = userStats.personalCapitalReturns.individualDeposits;
     const mostRecentDepositDate = userStats.personalCapitalReturns.mostRecentDepositDate;
-    if (!mostRecentDepositDate) return;
     
     // Update real-time returns immediately
     const updateRealTimeReturns = () => {
-      const realTimeData = calculatePersonalCapitalReturns(userStats.personalDeposits, mostRecentDepositDate);
+      let realTimeData;
+      
+      if (individualDeposits && individualDeposits.length > 0) {
+        console.log('[⏱️ REAL-TIME] Using multi-deposit calculation...');
+        realTimeData = calculatePersonalCapitalReturnsFromDeposits(individualDeposits, userStats.personalDeposits);
+      } else if (mostRecentDepositDate) {
+        console.log('[⏱️ REAL-TIME] Using legacy single-deposit calculation...');
+        realTimeData = calculatePersonalCapitalReturns(userStats.personalDeposits, mostRecentDepositDate);
+      } else {
+        console.log('[⏱️ REAL-TIME] No deposit data available');
+        return;
+      }
+      
       setRealTimeReturns(realTimeData);
-      console.log('[DEBUG] Real-time update:', realTimeData);
+      console.log('[⏱️ REAL-TIME] Updated accumulated amount:', formatCurrencyPrecise(realTimeData.accumulatedAmount, 6));
+      console.log('[⏱️ REAL-TIME] Days accumulated:', realTimeData.daysAccumulated.toFixed(6));
     };
     
     // Initial update
@@ -318,7 +345,7 @@ const Dashboard = () => {
     }
     
     // In a real app, this would trigger a blockchain transaction
-    alert(`Cashout requested for ${formatCurrencyPrecise(accumulatedAmount)}. Payment will arrive at midnight.`);
+    alert(`Cashout requested for ${formatCurrencyPrecise(accumulatedAmount, 6)}. Payment will arrive at midnight.`);
     
     // Update stats (in real app, this would come from blockchain)
     setUserStats(prev => ({
@@ -357,7 +384,7 @@ const Dashboard = () => {
                   {userStats.currentRank}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {userStats.returnRate > 0 ? `${userStats.returnRate}% Annual Return` : 'No Return Yet'}
+                  {userStats.returnRate > 0 ? `${userStats.returnRate}% Monthly Return` : 'No Return Yet'}
                 </div>
                 <div className={`text-xs px-2 py-1 rounded-full mt-1 ${getLevelBadgeColor(userStats.rankLevel)}`}>
                   {userStats.returnTier}
@@ -375,7 +402,7 @@ const Dashboard = () => {
                 <p className="text-gray-400 text-xs sm:text-sm font-medium">Personal Deposits</p>
                 <p className="text-lg sm:text-2xl font-bold text-white truncate">{formatCurrency(userStats.personalDeposits)}</p>
                 <p className="text-xs text-green-400 mt-1">
-                  {userStats.canEarn ? `${userStats.returnRate}% Annual Return` : 'Need $100 to earn'}
+                  {userStats.canEarn ? `${userStats.returnRate}% Monthly Return` : 'Need $100 to earn'}
                 </p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
@@ -504,8 +531,8 @@ const Dashboard = () => {
               <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-green-500/20">
                 <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
                   {realTimeReturns ? 
-                    formatCurrencyPrecise(realTimeReturns.accumulatedAmount) : 
-                    formatCurrency(userStats.personalCapitalReturns?.accumulatedAmount || 0)
+                    formatCurrencyPrecise(realTimeReturns.accumulatedAmount, 6) : 
+                    formatCurrencyPrecise(userStats.personalCapitalReturns?.accumulatedAmount || 0, 6)
                   }
                 </div>
                 <div className="text-gray-300 font-medium text-sm sm:text-base">Accumulated Returns</div>
@@ -519,7 +546,10 @@ const Dashboard = () => {
               
               <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-yellow-500/20">
                 <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">
-                  {formatCurrency(userStats.personalCapitalReturns?.dailyAmount || 0)}
+                  {realTimeReturns ? 
+                    formatCurrencyPrecise(realTimeReturns.dailyAmount, 6) : 
+                    formatCurrencyPrecise(userStats.personalCapitalReturns?.dailyAmount || 0, 6)
+                  }
                 </div>
                 <div className="text-gray-300 font-medium text-sm sm:text-base">Daily Rate</div>
                 <div className="text-xs text-gray-400 mt-1">

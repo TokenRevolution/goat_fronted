@@ -9,7 +9,9 @@ import {
   Star,
   Lock,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  CreditCard,
+  Gift
 } from 'lucide-react';
 import { 
   POSITION_LEVELS,
@@ -22,7 +24,8 @@ import {
 const LevelsOverview = ({ userLevel = null, className = "" }) => {
   const getCurrentUserLevel = () => {
     if (!userLevel) return -1;
-    return userLevel.current?.id || 0;
+    // Handle different possible structures from the API
+    return userLevel.current?.level_id ?? userLevel.current?.id ?? 0;
   };
 
   const getLevelIcon = (levelId) => {
@@ -168,6 +171,22 @@ const LevelsOverview = ({ userLevel = null, className = "" }) => {
                     {level.requirements}
                   </div>
                 )}
+                
+                {/* WeFi Card Reward for Posizione 1 */}
+                {level.id === 1 && (
+                  <div className="mt-3 p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-lg">
+                    <div className="flex items-center mb-2">
+                      <CreditCard className="w-4 h-4 text-cyan-400 mr-2" />
+                      <span className="text-cyan-400 font-semibold text-xs">CARTA WeFi REWARD</span>
+                    </div>
+                    <div className="text-xs text-gray-300 mb-1">
+                      🎁 <span className="text-goat-gold font-semibold">Carta WeFi decentralizzata gratuita</span>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      Reward esclusivo per accedere a funzionalità premium
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -207,7 +226,7 @@ const LevelsOverview = ({ userLevel = null, className = "" }) => {
                   {tier.rate}%
                 </div>
                 <div className="text-xs text-gray-400">
-                  Annual Return
+                  Monthly Return
                 </div>
               </div>
             ))}

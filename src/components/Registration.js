@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
 import { authApi } from '../api/auth';
 import { Trophy, User, Users, Loader, AlertCircle } from 'lucide-react';
@@ -7,15 +7,21 @@ import { Trophy, User, Users, Loader, AlertCircle } from 'lucide-react';
 const Registration = () => {
   console.log('[DEBUG] Registration: Component mounted');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { account, signer, refreshUserData, isUserRegistered, registrationChecked } = useWallet();
   
   console.log('[DEBUG] Registration: account =', account);
   console.log('[DEBUG] Registration: signer =', signer ? 'available' : 'not available');
   console.log('[DEBUG] Registration: isUserRegistered =', isUserRegistered);
   console.log('[DEBUG] Registration: registrationChecked =', registrationChecked);
+  
+  // Get referral address from URL parameter
+  const refParam = searchParams.get('ref');
+  console.log('[DEBUG] Registration: ref parameter from URL =', refParam);
+  
   const [formData, setFormData] = useState({
     nickname: '',
-    referralAddress: ''
+    referralAddress: refParam || '' // Pre-fill with ref parameter
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');

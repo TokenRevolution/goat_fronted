@@ -151,8 +151,12 @@ export const WalletProvider = ({ children }) => {
             const balance = await provider.getBalance(account);
             setBalance(ethers.utils.formatEther(balance));
             
-            // Get USDT balance
-            const usdtBal = await getUSDTBalance(account);
+            console.log('[🔍 TIMING FIX] Network and provider are ready, getting USDT balance...');
+            console.log('[🔍 TIMING FIX] Provider:', !!provider);
+            console.log('[🔍 TIMING FIX] Network info:', networkInfo);
+            
+            // Get USDT balance WITH the correct provider and network info
+            const usdtBal = await getUSDTBalanceWithParams(account, provider, networkInfo);
             setUsdtBalance(usdtBal);
             console.log('[DEBUG] WalletContext: Balances loaded - BNB:', ethers.utils.formatEther(balance), 'USDT:', usdtBal);
           }
@@ -307,8 +311,10 @@ export const WalletProvider = ({ children }) => {
         const balance = await provider.getBalance(account);
         setBalance(ethers.utils.formatEther(balance));
         
-        // Get USDT balance
-        const usdtBal = await getUSDTBalance(account);
+        console.log('[🔍 TIMING FIX] WalletConnect - Network and provider are ready, getting USDT balance...');
+        
+        // Get USDT balance WITH the correct provider and network info
+        const usdtBal = await getUSDTBalanceWithParams(account, provider, networkInfo);
         setUsdtBalance(usdtBal);
         console.log('[DEBUG] WalletContext: Balances loaded - BNB:', ethers.utils.formatEther(balance), 'USDT:', usdtBal);
       }
@@ -596,26 +602,26 @@ export const WalletProvider = ({ children }) => {
     }
   };
 
-  // Get USDT balance from backend (NO HARDCODED ADDRESSES)
-  const getUSDTBalance = useCallback(async (walletAddress) => {
+  // Get USDT balance with direct parameters (TIMING FIX)
+  const getUSDTBalanceWithParams = async (walletAddress, providerToUse, networkToUse) => {
     try {
-      console.log('[🔍 USDT BALANCE] === STARTING BALANCE CHECK ===');
+      console.log('[🔍 USDT BALANCE] === STARTING BALANCE CHECK (WITH PARAMS) ===');
       console.log('[🔍 USDT BALANCE] Wallet:', walletAddress);
-      console.log('[🔍 USDT BALANCE] Provider exists:', !!provider);
-      console.log('[🔍 USDT BALANCE] Current network:', currentNetwork);
+      console.log('[🔍 USDT BALANCE] Provider exists:', !!providerToUse);
+      console.log('[🔍 USDT BALANCE] Network to use:', networkToUse);
       
-      if (!provider || !walletAddress) {
+      if (!providerToUse || !walletAddress) {
         console.log('[🔍 USDT BALANCE] ❌ Missing provider or wallet, returning 0');
         return '0';
       }
       
       // Get USDT address from backend
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const isMainnet = currentNetwork?.chainId === 56;
+      const isMainnet = networkToUse?.chainId === 56;
       const networkParam = isMainnet ? 'mainnet' : 'testnet';
       
       console.log('[🔍 USDT BALANCE] API URL:', API_URL);
-      console.log('[🔍 USDT BALANCE] Chain ID:', currentNetwork?.chainId);
+      console.log('[🔍 USDT BALANCE] Chain ID:', networkToUse?.chainId);
       console.log('[🔍 USDT BALANCE] Is Mainnet:', isMainnet);
       console.log('[🔍 USDT BALANCE] Network param:', networkParam);
       console.log('[🔍 USDT BALANCE] 🌐 Calling backend API...');
@@ -635,7 +641,7 @@ export const WalletProvider = ({ children }) => {
       console.log('[🔍 USDT BALANCE] 🔗 Creating contract instance...');
       
       // Query blockchain for balance (18 decimals)
-      const usdtContract = new ethers.Contract(usdtAddress, USDT_ABI, provider);
+      const usdtContract = new ethers.Contract(usdtAddress, USDT_ABI, providerToUse);
       console.log('[🔍 USDT BALANCE] 📞 Calling balanceOf on blockchain...');
       
       const balance = await usdtContract.balanceOf(walletAddress);
@@ -653,6 +659,11 @@ export const WalletProvider = ({ children }) => {
       console.log('[🔍 USDT BALANCE] Error stack:', error.stack);
       return '0';
     }
+  };
+
+  // Get USDT balance from backend (NO HARDCODED ADDRESSES) - Legacy version
+  const getUSDTBalance = useCallback(async (walletAddress) => {
+    return await getUSDTBalanceWithParams(walletAddress, provider, currentNetwork);
   }, [provider, currentNetwork]);
 
   // Send USDT transaction (for deposits)

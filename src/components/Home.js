@@ -86,7 +86,7 @@ const Home = () => {
     {
       icon: Trophy,
       title: '8 Trophy Levels',
-      description: 'From Pulcini to Serie A, climb the ranks and collect exclusive trophies',
+      description: 'From Posizione 1 to Posizione 8, climb the ranks and collect exclusive trophies',
       color: 'from-goat-gold to-orange-500'
     },
     {
@@ -313,7 +313,7 @@ const Home = () => {
               </h2>
             </div>
             <p className="text-xl text-gray-300 max-w-4xl mx-auto">
-              Raggiungi il <span className="text-cyan-500 font-bold">rank Pulcini</span> e ottieni una 
+              Raggiungi la <span className="text-cyan-500 font-bold">Posizione 1</span> e ottieni una 
               <span className="text-goat-gold font-bold"> carta WeFi decentralizzata</span> come premio esclusivo!
             </p>
           </div>
@@ -348,7 +348,7 @@ const Home = () => {
                     <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold">Reward Esclusivo</p>
-                      <p className="text-gray-400 text-sm leading-relaxed">Ottieni la carta gratuitamente raggiungendo il rank Pulcini</p>
+                      <p className="text-gray-400 text-sm leading-relaxed">Ottieni la carta gratuitamente raggiungendo la Posizione 1</p>
                     </div>
                   </div>
                   
@@ -364,7 +364,7 @@ const Home = () => {
                 <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-lg p-4">
                   <div className="flex items-center mb-2">
                     <Gift className="w-5 h-5 text-cyan-400 mr-2" />
-                    <span className="text-cyan-400 font-semibold">REWARD PULCINI</span>
+                    <span className="text-cyan-400 font-semibold">REWARD POSIZIONE 1</span>
                   </div>
                   <p className="text-gray-300 text-sm">
                     Raggiungi $5.000 - $10.000 di network deposits + $1.000 deposito personale e ricevi la tua carta WeFi gratuitamente! 
@@ -398,7 +398,7 @@ const Home = () => {
                       <Trophy className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-lg font-semibold text-white mb-2">Raggiungi Rank Pulcini</h4>
+                      <h4 className="text-lg font-semibold text-white mb-2">Raggiungi Posizione 1</h4>
                       <p className="text-gray-400 leading-relaxed">
                         Accumula $5,000 - $10,000 di network deposits + $1,000 deposito personale minimo.
                       </p>
@@ -477,7 +477,7 @@ const Home = () => {
             <h3 className="text-2xl font-bold text-white mb-4">Disclaimer Carta WeFi</h3>
             <p className="text-gray-300 text-lg max-w-4xl mx-auto">
               La <span className="text-goat-gold font-bold">carta WeFi</span> viene assegnata automaticamente come reward 
-              al raggiungimento del <span className="text-cyan-500 font-bold">rank Pulcini</span> (network deposits tra $5,000 e $10,000 + 
+              al raggiungimento della <span className="text-cyan-500 font-bold">Posizione 1</span> (network deposits tra $5,000 e $10,000 + 
               deposito personale di $1,000). Questa carta decentralizzata ti darà accesso a funzionalità premium e supporta le principali blockchain. 
               È un reward esclusivo per riconoscere il tuo impegno nella piattaforma GOAT.
             </p>

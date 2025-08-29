@@ -196,7 +196,97 @@ export const getDaysElapsedSinceDate = (startDate) => {
 };
 
 /**
- * Calculate accumulated personal capital returns (paid monthly via cashout)
+ * Calculate accumulated personal capital returns from ALL individual deposits
+ * @param {Array} individualDeposits - Array of {amount, depositDate} objects
+ * @param {number} totalDepositAmount - Total deposit amount for tier calculation
+ * @returns {object} - Accumulated returns info
+ */
+export const calculatePersonalCapitalReturnsFromDeposits = (individualDeposits, totalDepositAmount) => {
+  if (!individualDeposits || individualDeposits.length === 0) {
+    return {
+      dailyAmount: 0,
+      accumulatedAmount: 0,
+      daysAccumulated: 0,
+      nextCashoutDate: getNextCashoutDate(),
+      tier: 'No deposits',
+      rate: 0,
+      monthlyRate: 0,
+      type: 'personal_capital',
+      paymentSchedule: 'monthly',
+      depositBreakdown: []
+    };
+  }
+
+  console.log('[💰 MULTI-DEPOSIT] === CALCULATING RETURNS FROM ALL DEPOSITS ===');
+  console.log('[💰 MULTI-DEPOSIT] Individual deposits:', individualDeposits);
+  console.log('[💰 MULTI-DEPOSIT] Total deposit amount:', totalDepositAmount);
+
+  // Use total amount to determine tier (this affects the rate for ALL deposits)
+  const tierInfo = calculateReturnRate(totalDepositAmount);
+  const monthlyRate = tierInfo.rate / 100; // TASSI MENSILI!
+  const dailyRate = monthlyRate / 30; // Diviso 30 giorni del mese
+
+  console.log('[💰 MULTI-DEPOSIT] Tier info:', tierInfo);
+  console.log('[💰 MULTI-DEPOSIT] Monthly rate:', monthlyRate);
+  console.log('[💰 MULTI-DEPOSIT] Daily rate:', dailyRate);
+
+  let totalAccumulatedAmount = 0;
+  let totalDailyAmount = 0;
+  let depositBreakdown = [];
+
+  // Calculate returns for each individual deposit
+  individualDeposits.forEach((deposit, index) => {
+    const daysElapsed = getDaysElapsedSinceDate(deposit.depositDate);
+    const depositDailyAmount = deposit.amount * dailyRate;
+    const depositAccumulated = depositDailyAmount * daysElapsed;
+
+    console.log(`[💰 MULTI-DEPOSIT] Deposit ${index + 1}:`, {
+      amount: deposit.amount,
+      depositDate: deposit.depositDate,
+      daysElapsed: daysElapsed,
+      dailyAmount: depositDailyAmount,
+      accumulated: depositAccumulated
+    });
+
+    totalAccumulatedAmount += depositAccumulated;
+    totalDailyAmount += depositDailyAmount;
+
+    depositBreakdown.push({
+      amount: deposit.amount,
+      depositDate: deposit.depositDate,
+      daysElapsed: daysElapsed,
+      dailyAmount: depositDailyAmount,
+      accumulatedAmount: depositAccumulated
+    });
+  });
+
+  // Calculate average days for display
+  const totalDays = depositBreakdown.reduce((sum, dep) => sum + dep.daysElapsed, 0);
+  const averageDays = totalDays / depositBreakdown.length;
+
+  console.log('[💰 MULTI-DEPOSIT] TOTALS:', {
+    totalDailyAmount,
+    totalAccumulatedAmount,
+    averageDays,
+    depositsCount: individualDeposits.length
+  });
+
+  return {
+    dailyAmount: totalDailyAmount,
+    accumulatedAmount: totalAccumulatedAmount,
+    daysAccumulated: averageDays, // For display
+    nextCashoutDate: getNextCashoutDate(),
+    tier: tierInfo.label,
+    rate: tierInfo.rate,
+    monthlyRate: tierInfo.rate,
+    type: 'personal_capital',
+    paymentSchedule: 'monthly',
+    depositBreakdown: depositBreakdown
+  };
+};
+
+/**
+ * Calculate accumulated personal capital returns (paid monthly via cashout) - LEGACY VERSION
  * @param {number} depositAmount - User's personal deposit
  * @param {Date|string|number} daysOrDate - Days since last cashout, deposit date, or null for current month elapsed
  * @returns {object} - Accumulated returns info
@@ -484,18 +574,13 @@ export const formatCurrency = (amount) => {
 export const formatCurrencyPrecise = (amount, maxDecimals = 6) => {
   if (!amount || isNaN(amount)) return '$0.000000';
   
-  // For very small amounts, show up to 6 decimals
-  if (amount < 0.01) {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: maxDecimals,
-      maximumFractionDigits: maxDecimals
-    }).format(amount);
-  }
-  
-  // For larger amounts, use standard 2 decimal format
-  return formatCurrency(amount);
+  // Always show 6 decimals for precise values
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: maxDecimals,
+    maximumFractionDigits: maxDecimals
+  }).format(amount);
 };
 
 /**
@@ -557,6 +642,7 @@ export default {
   calculateReturnRate,
   calculateDailyReturn,
   calculatePersonalCapitalReturns,
+  calculatePersonalCapitalReturnsFromDeposits,
   calculateDailyNetworkEarnings,
   getDaysElapsedThisMonth,
   getDaysElapsedSinceDate,

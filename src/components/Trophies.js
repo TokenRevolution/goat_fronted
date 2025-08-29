@@ -10,7 +10,9 @@ import {
   TrendingUp,
   DollarSign,
   Crown,
-  Info
+  Info,
+  Network,
+  CreditCard
 } from 'lucide-react';
 import { 
   calculateUserLevel,
@@ -222,11 +224,76 @@ const Trophies = () => {
                 <h3 className="text-lg font-bold text-blue-400 mb-2">How GOAT Levels Work</h3>
                 <div className="space-y-2 text-gray-300">
                   <p>🏆 <strong>9 Position Levels:</strong> Start as Cliente and advance to Position 8</p>
-                  <p>💰 <strong>Return Rates:</strong> Earn 0% to 10% annual returns based on deposit amount</p>
+                  <p>💰 <strong>Return Rates:</strong> Earn 0% to 10% monthly returns based on deposit amount</p>
                   <p>🌐 <strong>Network Bonuses:</strong> Earn 10% to 50% from your team's production</p>
                   <p>⏰ <strong>Daily Credits:</strong> All earnings are credited at 00:00 every day</p>
                   <p>🎯 <strong>Requirements:</strong> Each level has specific deposit, team, and structure requirements</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Posizione 1 Highlight Card */}
+        <div className="mb-8">
+          <div className="glass rounded-xl p-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-green-400 flex items-center">
+                <Trophy className="w-6 h-6 mr-2" />
+                Posizione 1 - Your First Major Milestone
+              </h3>
+              <div className="text-sm bg-green-500/20 text-green-400 px-3 py-1 rounded-full">
+                Level 1
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="text-center p-4 bg-black/20 rounded-lg border border-green-500/20">
+                <DollarSign className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                <div className="text-lg font-bold text-white">$1,000</div>
+                <div className="text-sm text-gray-400">Personal Deposit</div>
+              </div>
+              
+              <div className="text-center p-4 bg-black/20 rounded-lg border border-blue-500/20">
+                <Users className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                <div className="text-lg font-bold text-white">$2,500</div>
+                <div className="text-sm text-gray-400">First Line Revenue</div>
+              </div>
+              
+              <div className="text-center p-4 bg-black/20 rounded-lg border border-purple-500/20">
+                <Network className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+                <div className="text-lg font-bold text-white">$10,000</div>
+                <div className="text-sm text-gray-400">Team Revenue</div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-goat-gold/10 to-orange-500/10 rounded-lg p-4 border border-goat-gold/20">
+              <h4 className="text-goat-gold font-semibold mb-2 flex items-center">
+                <Star className="w-4 h-4 mr-2" />
+                Position 1 Benefits
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-300">
+                <div>• 15% Network Bonus Rate</div>
+                <div>• 4x Max Multiplier</div>
+                <div>• Enhanced Team Earnings</div>
+                <div>• Leadership Recognition</div>
+              </div>
+              <p className="text-xs text-gray-400 mt-3">
+                💡 Reach Posizione 1 to unlock your first major leadership role in the GOAT ecosystem
+              </p>
+            </div>
+            
+            {/* WeFi Card Reward */}
+            <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-lg p-4 border border-cyan-500/20 mt-4">
+              <h4 className="text-cyan-400 font-semibold mb-2 flex items-center">
+                <CreditCard className="w-4 h-4 mr-2" />
+                Carta WeFi Reward Esclusivo
+              </h4>
+              <div className="text-sm text-gray-300 mb-2">
+                Raggiungi Posizione 1 e ottieni una <span className="text-goat-gold font-semibold">carta WeFi decentralizzata gratuita</span>!
+              </div>
+              <div className="text-xs text-gray-400">
+                🎁 Carta decentralizzata per accedere a funzionalità premium e vantaggi esclusivi
               </div>
             </div>
           </div>

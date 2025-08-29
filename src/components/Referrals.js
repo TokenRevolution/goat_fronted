@@ -66,65 +66,70 @@ const Referrals = () => {
         if (dashboardResponse.success && dashboardResponse.data) {
           const { network } = dashboardResponse.data;
           
-          // Update referral stats from dashboard data
+          // Update referral stats from dashboard data (SAME as dashboard)
           setReferralStats({
-            totalReferrals: network.directReferrals || 0,
-            activeReferrals: network.directReferrals || 0,
-            totalEarnings: network.referralEarnings || 0,
+            directReferrals: network.directReferrals || 0,
+            indirectReferrals: (network.totalNetworkSize || 0) - (network.directReferrals || 0),
+            directLineValue: network.firstLineRevenue || 0, 
+            networkValue: network.teamRevenue || 0,
+            totalEarnings: network.dailyNetworkEarnings || 0,
             monthlyEarnings: network.monthlyReferralEarnings || 0
           });
           
-          // Create network tree from referral data (if available)
-          if (network.referrals && network.referrals.length > 0) {
-            const networkData = network.referrals.map((referral, index) => ({
+          console.log('[REFERRALS] Mapped stats:', {
+            directReferrals: network.directReferrals,
+            directLineValue: network.firstLineRevenue,
+            networkValue: network.teamRevenue,
+            totalEarnings: network.dailyNetworkEarnings
+          });
+          
+          // Create network tree from networkBonusBreakdown (SAME as dashboard)
+          if (network.networkBonusBreakdown && network.networkBonusBreakdown.length > 0) {
+            const networkData = network.networkBonusBreakdown.map((user, index) => ({
               id: index + 1,
-              address: referral.address || `${referral.address?.slice(0, 6)}...${referral.address?.slice(-3)}`,
-              deposit: referral.totalDeposits || 0,
-              returnRate: referral.returnRate || 0,
-              earnings: referral.earnings || 0,
-              level: 1, // Default to level 1 for now
-              status: referral.active ? 'active' : 'inactive',
-              joinDate: referral.joinDate || new Date().toISOString().split('T')[0]
+              address: user.username ? `${user.username}` : `${user.address?.slice(0, 8)}...${user.address?.slice(-4)}`,
+              deposit: user.deposits || 0,
+              returnRate: ((user.deposits || 0) >= 10000 ? 10 : 
+                          (user.deposits || 0) >= 5000 ? 9 :
+                          (user.deposits || 0) >= 2500 ? 8 :
+                          (user.deposits || 0) >= 1000 ? 7 :
+                          (user.deposits || 0) >= 500 ? 6 : 5), // Calculate rate based on deposit tiers
+              earnings: user.calculatedBonus || 0,
+              level: user.level || 1,
+              status: 'active',
+              joinDate: new Date().toISOString().split('T')[0]
             }));
             setNetworkTree(networkData);
+            
+            // Calculate bonus calculations from networkBonusBreakdown
+            const calculations = network.networkBonusBreakdown.map((user, index) => {
+              const userRate = 0.07; // 7% from dashboard - your rate
+              const theirRate = ((user.deposits || 0) >= 10000 ? 0.10 : 
+                               (user.deposits || 0) >= 5000 ? 0.09 :
+                               (user.deposits || 0) >= 2500 ? 0.08 :
+                               (user.deposits || 0) >= 1000 ? 0.07 :
+                               (user.deposits || 0) >= 500 ? 0.06 : 0.05);
+              const bonusRate = Math.max(0, userRate - theirRate);
+              
+              return {
+                referral: user.username || `${user.address?.slice(0, 8)}...${user.address?.slice(-4)}`,
+                yourRate: userRate,
+                theirRate: theirRate,
+                bonus: bonusRate,
+                earnings: user.calculatedBonus || 0
+              };
+            });
+            
+            console.log('[BONUS CALCULATOR] Using networkBonusBreakdown:', calculations);
+            setBonusCalculations(calculations);
+          } else {
+            console.log('[REFERRALS] No networkBonusBreakdown data available');
+            setNetworkTree([]);
+            setBonusCalculations([]);
           }
         }
 
-        // Get referral stats from referrals API
-        const referralStatsResponse = await referralsApi.getReferralStats(account);
-        if (referralStatsResponse.success) {
-          setReferralStats(prev => ({
-            ...prev,
-            ...referralStatsResponse.stats
-          }));
-        }
-
-        // Get referral network tree from referrals API
-        const networkResponse = await referralsApi.getReferralNetwork(account);
-        if (networkResponse.success && networkResponse.network) {
-          const networkData = [];
-          
-          // Process all levels from the network response
-          Object.keys(networkResponse.network).forEach(levelKey => {
-            const users = networkResponse.network[levelKey];
-            users.forEach((user, index) => {
-              networkData.push({
-                id: `${levelKey}_${index}`,
-                address: `${user.address?.slice(0, 6)}...${user.address?.slice(-6)}` || 'Unknown',
-                username: user.username || 'User',
-                deposit: user.deposits || 0,
-                returnRate: 0, // TODO: Calculate based on deposits
-                earnings: user.earnings || 0,
-                level: user.level || 1,
-                status: 'active',
-                joinDate: user.joinDate || new Date().toISOString().split('T')[0]
-              });
-            });
-          });
-          
-          setNetworkTree(networkData);
-          console.log('[DEBUG] Referrals: Network tree loaded:', networkData);
-        }
+        console.log('[REFERRALS] Using ONLY dashboard data, NO additional API calls')
 
       } catch (error) {
         console.error('[DEBUG] Referrals: Error loading referral data:', error);
@@ -139,9 +144,12 @@ const Referrals = () => {
 
   const copyReferralCode = async () => {
     try {
-      await navigator.clipboard.writeText(`https://goat-platform.com/ref/${referralCode}`);
+      // Link diretto alla registrazione con l'address come referral
+      const registrationLink = `${window.location.origin}/register?ref=${account}`;
+      await navigator.clipboard.writeText(registrationLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
+      console.log('[REFERRAL] Copied registration link:', registrationLink);
     } catch (err) {
       console.error('Failed to copy referral code:', err);
     }
@@ -150,11 +158,13 @@ const Referrals = () => {
   const shareReferral = async () => {
     if (navigator.share) {
       try {
+        const registrationLink = `${window.location.origin}/register?ref=${account}`;
         await navigator.share({
           title: 'Join GOAT Platform',
           text: 'Join me on GOAT - the Greatest of All Time football platform and start earning rewards!',
-          url: `https://goat-platform.com/ref/${referralCode}`
+          url: registrationLink
         });
+        console.log('[REFERRAL] Shared registration link:', registrationLink);
       } catch (err) {
         console.error('Error sharing:', err);
       }
@@ -287,7 +297,7 @@ const Referrals = () => {
               <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0">
                 <input
                   type="text"
-                  value={`https://goat-platform.com/ref/${referralCode}`}
+                  value={`${window.location.origin}/register?ref=${account}`}
                   readOnly
                   className="flex-1 bg-black/20 border border-gray-600 rounded-lg sm:rounded-l-lg sm:rounded-r-none px-3 sm:px-4 py-2 sm:py-3 text-white focus:outline-none focus:border-goat-gold text-sm sm:text-base min-w-0"
                 />
