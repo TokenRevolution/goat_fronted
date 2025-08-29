@@ -596,33 +596,61 @@ export const WalletProvider = ({ children }) => {
     }
   };
 
-  // Get USDT balance
-  // FUNZIONA: Get USDT balance DIRETTO
+  // Get USDT balance from backend (NO HARDCODED ADDRESSES)
   const getUSDTBalance = useCallback(async (walletAddress) => {
     try {
-      if (!provider || !walletAddress) return '0';
+      console.log('[🔍 USDT BALANCE] === STARTING BALANCE CHECK ===');
+      console.log('[🔍 USDT BALANCE] Wallet:', walletAddress);
+      console.log('[🔍 USDT BALANCE] Provider exists:', !!provider);
+      console.log('[🔍 USDT BALANCE] Current network:', currentNetwork);
       
-      console.log('[DEBUG] WalletContext: Getting USDT balance for:', walletAddress);
+      if (!provider || !walletAddress) {
+        console.log('[🔍 USDT BALANCE] ❌ Missing provider or wallet, returning 0');
+        return '0';
+      }
       
-      // INDIRIZZO DIRETTO - BASTA CAGATE!
+      // Get USDT address from backend
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const isMainnet = currentNetwork?.chainId === 56;
-      const usdtAddress = isMainnet 
-        ? '0x55d398326f99059fF775485246999027B3197955'  // BSC Mainnet USDT
-        : '0x4bC3A5ae91ab34380464DBD17233178fbB861AC0'; // BSC Testnet USDT
+      const networkParam = isMainnet ? 'mainnet' : 'testnet';
       
-      console.log('[DEBUG] WalletContext: Using USDT address:', usdtAddress, 'Network:', isMainnet ? 'mainnet' : 'testnet');
+      console.log('[🔍 USDT BALANCE] API URL:', API_URL);
+      console.log('[🔍 USDT BALANCE] Chain ID:', currentNetwork?.chainId);
+      console.log('[🔍 USDT BALANCE] Is Mainnet:', isMainnet);
+      console.log('[🔍 USDT BALANCE] Network param:', networkParam);
+      console.log('[🔍 USDT BALANCE] 🌐 Calling backend API...');
+      
+      const response = await fetch(`${API_URL}/api/wallet/usdt-address?network=${networkParam}`);
+      const data = await response.json();
+      
+      console.log('[🔍 USDT BALANCE] 📡 Backend response:', data);
+      
+      if (!data.success) {
+        console.log('[🔍 USDT BALANCE] ❌ Backend failed:', data);
+        return '0';
+      }
+      
+      const usdtAddress = data.usdtAddress;
+      console.log('[🔍 USDT BALANCE] ✅ USDT Contract Address:', usdtAddress);
+      console.log('[🔍 USDT BALANCE] 🔗 Creating contract instance...');
       
       // Query blockchain for balance (18 decimals)
       const usdtContract = new ethers.Contract(usdtAddress, USDT_ABI, provider);
-      const balance = await usdtContract.balanceOf(walletAddress);
-      const formattedBalance = ethers.utils.formatUnits(balance, 18);
+      console.log('[🔍 USDT BALANCE] 📞 Calling balanceOf on blockchain...');
       
-      console.log('[DEBUG] WalletContext: Raw balance:', balance.toString());
-      console.log('[DEBUG] WalletContext: Formatted balance:', formattedBalance);
+      const balance = await usdtContract.balanceOf(walletAddress);
+      console.log('[🔍 USDT BALANCE] 🔢 Raw balance (wei):', balance.toString());
+      
+      const formattedBalance = ethers.utils.formatUnits(balance, 18);
+      console.log('[🔍 USDT BALANCE] 💰 Formatted balance:', formattedBalance, 'USDT');
+      console.log('[🔍 USDT BALANCE] === BALANCE CHECK COMPLETE ===');
+      
       return formattedBalance;
       
     } catch (error) {
-      console.error('[DEBUG] WalletContext: Error getting USDT balance:', error);
+      console.log('[🔍 USDT BALANCE] ❌ ERROR:', error);
+      console.log('[🔍 USDT BALANCE] Error message:', error.message);
+      console.log('[🔍 USDT BALANCE] Error stack:', error.stack);
       return '0';
     }
   }, [provider, currentNetwork]);
