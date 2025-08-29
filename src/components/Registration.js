@@ -26,6 +26,26 @@ const Registration = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Update referralAddress when URL parameter changes
+  useEffect(() => {
+    const currentRefParam = searchParams.get('ref');
+    console.log('[DEBUG] Registration: URL ref parameter changed to:', currentRefParam);
+    
+    if (currentRefParam) {
+      setFormData(prev => {
+        // Only update if different to avoid loops
+        if (prev.referralAddress !== currentRefParam) {
+          console.log('[DEBUG] Registration: Auto-filled referralAddress with:', currentRefParam);
+          return {
+            ...prev,
+            referralAddress: currentRefParam
+          };
+        }
+        return prev;
+      });
+    }
+  }, [searchParams]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -225,10 +245,22 @@ const Registration = () => {
                 value={formData.referralAddress}
                 onChange={handleInputChange}
                 placeholder="0x... (optional)"
-                className="w-full px-4 py-3 bg-black/30 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-goat-gold focus:ring-1 focus:ring-goat-gold transition-colors"
+                className={`w-full px-4 py-3 bg-black/30 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-goat-gold focus:ring-1 focus:ring-goat-gold transition-colors ${
+                  formData.referralAddress ? 'border-green-500' : 'border-gray-600'
+                }`}
                 disabled={isLoading}
               />
-              <p className="text-xs text-gray-500 mt-1">If you were referred by someone, enter their wallet address</p>
+              <p className="text-xs text-gray-500 mt-1">
+                If you were referred by someone, enter their wallet address
+                {formData.referralAddress && (
+                  <span className="text-green-400 ml-2">✓ Auto-filled from referral link</span>
+                )}
+              </p>
+              
+              {/* Debug Info */}
+              <div className="text-xs text-gray-400 mt-1 font-mono">
+                DEBUG - Current refAddress: {formData.referralAddress || 'empty'} | URL param: {searchParams.get('ref') || 'none'}
+              </div>
             </div>
 
             {/* Error Message */}

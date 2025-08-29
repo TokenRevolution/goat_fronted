@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { 
   formatCurrency,
+  formatCurrencyPrecise,
   formatPercentage 
 } from '../utils/goatBusinessLogic';
 import { goatApi } from '../api/goat';
@@ -89,34 +90,27 @@ const Referrals = () => {
               id: index + 1,
               address: user.username ? `${user.username}` : `${user.address?.slice(0, 8)}...${user.address?.slice(-4)}`,
               deposit: user.deposits || 0,
-              returnRate: ((user.deposits || 0) >= 10000 ? 10 : 
-                          (user.deposits || 0) >= 5000 ? 9 :
-                          (user.deposits || 0) >= 2500 ? 8 :
-                          (user.deposits || 0) >= 1000 ? 7 :
-                          (user.deposits || 0) >= 500 ? 6 : 5), // Calculate rate based on deposit tiers
+              returnRate: (user.userRate || 0) * 100, // Use real user rate from backend (convert to percentage)
               earnings: user.calculatedBonus || 0,
               level: user.level || 1,
               status: 'active',
-              joinDate: new Date().toISOString().split('T')[0]
+              joinDate: new Date().toISOString().split('T')[0],
+              // NEW: Real accumulated data
+              accumulatedReturns: user.accumulatedReturns || 0,
+              daysAccumulated: user.daysAccumulated || 0
             }));
             setNetworkTree(networkData);
             
-            // Calculate bonus calculations from networkBonusBreakdown
+            // Calculate bonus calculations from networkBonusBreakdown (UPDATED: with real data)
             const calculations = network.networkBonusBreakdown.map((user, index) => {
-              const userRate = 0.07; // 7% from dashboard - your rate
-              const theirRate = ((user.deposits || 0) >= 10000 ? 0.10 : 
-                               (user.deposits || 0) >= 5000 ? 0.09 :
-                               (user.deposits || 0) >= 2500 ? 0.08 :
-                               (user.deposits || 0) >= 1000 ? 0.07 :
-                               (user.deposits || 0) >= 500 ? 0.06 : 0.05);
-              const bonusRate = Math.max(0, userRate - theirRate);
-              
               return {
                 referral: user.username || `${user.address?.slice(0, 8)}...${user.address?.slice(-4)}`,
-                yourRate: userRate,
-                theirRate: theirRate,
-                bonus: bonusRate,
-                earnings: user.calculatedBonus || 0
+                yourRate: 0.07, // 7% from dashboard - your rate  
+                theirRate: user.userRate || 0.05, // Use real user rate from backend
+                bonus: user.bonusDifference || 0, // Use real bonus difference from backend
+                earnings: user.calculatedBonus || 0, // Use real calculated bonus from backend
+                accumulatedReturns: user.accumulatedReturns || 0, // NEW: Show real accumulated returns
+                daysAccumulated: user.daysAccumulated || 0 // NEW: Show days accumulated
               };
             });
             
@@ -252,7 +246,7 @@ const Referrals = () => {
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
                 <p className="text-gray-400 text-xs sm:text-sm">First Line Deposits</p>
-                <p className="text-lg sm:text-2xl font-bold text-goat-gold truncate">{formatCurrency(referralStats.directLineValue || 0)}</p>
+                <p className="text-lg sm:text-2xl font-bold text-goat-gold truncate">{formatCurrencyPrecise(referralStats.directLineValue || 0, 6)}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-goat-gold to-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
                 <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
@@ -264,7 +258,7 @@ const Referrals = () => {
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
                 <p className="text-gray-400 text-xs sm:text-sm">Total Network Deposits</p>
-                <p className="text-lg sm:text-2xl font-bold text-white truncate">{formatCurrency(referralStats.networkValue || 0)}</p>
+                <p className="text-lg sm:text-2xl font-bold text-white truncate">{formatCurrencyPrecise(referralStats.networkValue || 0, 6)}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-400 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
                 <Network className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -276,7 +270,7 @@ const Referrals = () => {
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
                 <p className="text-gray-400 text-xs sm:text-sm">Daily Network Earnings</p>
-                <p className="text-lg sm:text-2xl font-bold text-blue-400 truncate">{formatCurrency(referralStats.totalEarnings || 0)}</p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-400 truncate">{formatCurrencyPrecise(referralStats.totalEarnings || 0, 6)}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
                 <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -350,15 +344,21 @@ const Referrals = () => {
             <div className="space-y-4">
               {bonusCalculations.length > 0 ? (
                 bonusCalculations.map((calc, index) => (
-                  <div key={index} className="p-4 bg-black/20 rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
+                  <div key={index} className="p-4 bg-black/20 rounded-lg border border-gray-600/30">
+                    <div className="flex justify-between items-center mb-3">
                       <span className="text-gray-300 font-medium">{calc.referral}</span>
-                      <span className="text-goat-gold font-bold">{formatCurrency(calc.earnings)}</span>
+                      <span className="text-goat-gold font-bold">{formatCurrencyPrecise(calc.earnings, 6)}</span>
                     </div>
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm text-gray-400 mb-2">
                       Your Rate: {formatPercentage(calc.yourRate)} | 
                       Their Rate: {formatPercentage(calc.theirRate)} | 
                       Bonus: {formatPercentage(calc.bonus)}
+                    </div>
+                    {/* NEW: Show accumulated returns with precision */}
+                    <div className="text-xs text-cyan-400 bg-black/30 rounded p-2">
+                      💰 Their Accumulated: {formatCurrencyPrecise(calc.accumulatedReturns, 6)} ({(calc.daysAccumulated).toFixed(6)} days)
+                      <br />
+                      🎯 Your Bonus: {formatCurrencyPrecise(calc.accumulatedReturns, 6)} × {formatPercentage(calc.bonus)} = {formatCurrencyPrecise(calc.earnings, 6)}
                     </div>
                   </div>
                 ))
@@ -374,8 +374,11 @@ const Referrals = () => {
               <div className="flex items-center justify-between">
                 <span className="text-white font-medium">Total Monthly Bonus:</span>
                 <span className="text-2xl font-bold text-goat-gold">
-                  {formatCurrency(referralStats.monthlyEarnings)}
+                  {formatCurrencyPrecise(referralStats.monthlyEarnings, 6)}
                 </span>
+              </div>
+              <div className="text-xs text-gray-400 mt-2">
+                Based on real-time accumulated returns from your network
               </div>
             </div>
           </div>
@@ -409,9 +412,20 @@ const Referrals = () => {
                           <span className="text-white font-mono">{referral.address}</span>
                         </div>
                       </td>
-                      <td className="py-4 text-white">{formatCurrency(referral.deposit)}</td>
-                      <td className="py-4 text-goat-gold">{formatPercentage(referral.returnRate)}</td>
-                      <td className="py-4 text-green-400">{formatCurrency(referral.earnings)}</td>
+                      <td className="py-4 text-white">
+                        {formatCurrencyPrecise(referral.deposit, 6)}
+                        {/* NEW: Show accumulated returns */}
+                        <div className="text-xs text-cyan-400">
+                          Accumulated: {formatCurrencyPrecise(referral.accumulatedReturns, 6)}
+                        </div>
+                      </td>
+                      <td className="py-4 text-goat-gold">{formatPercentage(referral.returnRate / 100)}</td>
+                      <td className="py-4 text-green-400">
+                        {formatCurrencyPrecise(referral.earnings, 6)}
+                        <div className="text-xs text-gray-400">
+                          ({(referral.daysAccumulated || 0).toFixed(6)} days)
+                        </div>
+                      </td>
                       <td className="py-4">
                         <span className={`px-2 py-1 rounded-full text-xs ${
                           referral.status === 'active' 

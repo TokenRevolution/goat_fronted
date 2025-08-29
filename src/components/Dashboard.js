@@ -654,7 +654,7 @@ const Dashboard = () => {
                 <Network className="w-5 h-5 text-cyan-400 mr-2" />
                 Network Bonus Breakdown
                 <span className="ml-auto text-sm text-gray-400">
-                  Daily: {formatCurrency(networkOverview.differenceBonus + networkOverview.sameLevelBonus)}
+                  Daily: {formatCurrencyPrecise(networkOverview.differenceBonus + networkOverview.sameLevelBonus, 6)}
                 </span>
               </h3>
               
@@ -662,18 +662,18 @@ const Dashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="text-center p-4 bg-black/20 rounded-xl border border-green-500/20">
                   <div className="text-2xl font-bold text-green-400 mb-2">
-                    {formatCurrency(networkOverview.differenceBonus)}
+                    {formatCurrencyPrecise(networkOverview.differenceBonus, 6)}
                   </div>
                   <div className="text-sm text-gray-300">Difference Bonus</div>
-                  <div className="text-xs text-gray-500">From level differences</div>
+                  <div className="text-xs text-gray-500">From level differences on accumulated</div>
                 </div>
                 
                 <div className="text-center p-4 bg-black/20 rounded-xl border border-blue-500/20">
                   <div className="text-2xl font-bold text-blue-400 mb-2">
-                    {formatCurrency(networkOverview.sameLevelBonus)}
+                    {formatCurrencyPrecise(networkOverview.sameLevelBonus, 6)}
                   </div>
                   <div className="text-sm text-gray-300">Same Level Bonus</div>
-                  <div className="text-xs text-gray-500">From equal levels</div>
+                  <div className="text-xs text-gray-500">From equal levels on accumulated</div>
                 </div>
                 
                 <div className="text-center p-4 bg-black/20 rounded-xl border border-purple-500/20">
@@ -700,7 +700,11 @@ const Dashboard = () => {
                       <div>
                         <div className="text-white font-medium">{user.username}</div>
                         <div className="text-xs text-gray-400">
-                          {formatCurrency(user.deposits)} deposits • {formatCurrency(user.dailyProduction)}/day
+                          {formatCurrencyPrecise(user.deposits, 6)} deposits • {formatCurrencyPrecise(user.dailyProduction, 6)}/day potential
+                        </div>
+                        {/* NEW: Show real accumulated returns with 6 decimals */}
+                        <div className="text-xs text-cyan-400">
+                          💰 Accumulated: {formatCurrencyPrecise(user.accumulatedReturns || 0, 6)} ({(user.daysAccumulated || 0).toFixed(6)} days)
                         </div>
                       </div>
                     </div>
@@ -711,11 +715,11 @@ const Dashboard = () => {
                         user.bonusType === 'same_level' ? 'text-blue-400' :
                         'text-gray-400'
                       }`}>
-                        {user.calculatedBonus > 0 ? formatCurrency(user.calculatedBonus) : '$0.00'}
+                        {user.calculatedBonus > 0 ? formatCurrencyPrecise(user.calculatedBonus, 6) : '$0.000000'}
                       </div>
                       <div className="text-xs text-gray-400">
-                        {user.bonusType === 'difference' && `${(user.bonusDifference * 100).toFixed(1)}% diff`}
-                        {user.bonusType === 'same_level' && 'Same level'}
+                        {user.bonusType === 'difference' && `${(user.bonusDifference * 100).toFixed(2)}% on accumulated`}
+                        {user.bonusType === 'same_level' && 'Same level on accumulated'}
                         {user.bonusType === 'none' && 'No bonus'}
                       </div>
                     </div>
