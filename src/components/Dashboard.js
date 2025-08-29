@@ -14,7 +14,16 @@ import {
   Zap,
   Star,
   TrendingDown,
-  Activity
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Info,
+  Eye,
+  Network,
+  TrendingUp as TrendingUpAlt,
+  Coins,
+  Shield
 } from 'lucide-react';
 import { 
   calculatePersonalCapitalReturns,
@@ -53,7 +62,14 @@ const Dashboard = () => {
     directReferrals: 0,
     indirectReferrals: 0,
     totalNetworkDeposits: 0,
-    averageDeposit: 0
+    averageDeposit: 0,
+    // Nuove informazioni del sistema aggiornato
+    networkBonusBreakdown: [],
+    cashoutLimitInfo: null,
+    differenceBonus: 0,
+    sameLevelBonus: 0,
+    isEarningLimited: false,
+    originalDailyEarnings: 0
   });
 
   const [loading, setLoading] = useState(true);
@@ -81,15 +97,30 @@ const Dashboard = () => {
 
       const { position, deposits, earnings, network } = dashboardResponse.data;
 
+      // DEBUG: Log delle API response
+      console.log('[DEBUG] Dashboard: Full API response data:', dashboardResponse.data);
+      console.log('[DEBUG] Dashboard: Position data:', position);
+      console.log('[DEBUG] Dashboard: Deposits data:', deposits);
+      console.log('[DEBUG] Dashboard: Earnings data:', earnings);
+      console.log('[DEBUG] Dashboard: Network data:', network);
+      console.log('[DEBUG] Dashboard: NUOVE INFO - networkBonusBreakdown:', network?.networkBonusBreakdown);
+      console.log('[DEBUG] Dashboard: NUOVE INFO - cashoutLimitInfo:', network?.cashoutLimitInfo);
+      console.log('[DEBUG] Dashboard: NUOVE INFO - differenceBonus:', network?.differenceBonus);
+      console.log('[DEBUG] Dashboard: NUOVE INFO - sameLevelBonusAmount:', network?.sameLevelBonusAmount);
+
       // Calculate DUAL CREDIT SYSTEM earnings
       const personalCapitalReturns = calculatePersonalCapitalReturns(deposits.totalDeposits, 30);
       const dailyNetworkEarnings = calculateDailyNetworkEarnings(position.current, network.teamRevenue, network.sameLevelRevenue || 0);
       const cashoutCountdown = getTimeUntilCashout();
       const networkCreditCountdown = getTimeUntilDailyCredit();
 
+      // DEBUG: Log dei calcoli
+      console.log('[DEBUG] Dashboard: personalCapitalReturns:', personalCapitalReturns);
+      console.log('[DEBUG] Dashboard: dailyNetworkEarnings:', dailyNetworkEarnings);
+
       // Update user stats with data
-      setUserStats(prevStats => ({
-        ...prevStats,
+      const newStats = {
+        ...userStats,
         totalDeposits: deposits.totalDeposits,
         personalDeposits: deposits.totalDeposits,
         monthlyEarnings: deposits.monthlyReturn,
@@ -115,19 +146,41 @@ const Dashboard = () => {
         multiplier: position.current.max_multiplier,
         networkBonus: (position.current.network_bonus_rate || 0) * network.teamRevenue,
         sameLevelBonus: (position.current.same_level_bonus_rate || 0) * network.teamRevenue,
-        userLevel: position // Store complete level info
-      }));
+        userLevel: position // Store complete level info with available levels
+      };
+      
+      // DEBUG: Log del nuovo stato
+      console.log('[DEBUG] Dashboard: New userStats being set:', newStats);
+      console.log('[DEBUG] Dashboard: teamDeposits (networkValue) will be:', newStats.networkValue);
+      console.log('[DEBUG] Dashboard: totalReferrals will be:', newStats.totalReferrals);
+      console.log('[DEBUG] Dashboard: networkBonus will be:', newStats.networkBonus);
+      
+      setUserStats(newStats);
 
-      // Update network overview
-      setNetworkOverview({
+      // Update network overview con tutte le nuove informazioni
+      const newNetworkOverview = {
         directReferrals: network.directReferrals || 0,
         indirectReferrals: (network.totalNetworkSize || 0) - (network.directReferrals || 0),
         totalNetworkDeposits: network.teamRevenue || 0,
         firstLineDeposits: network.firstLineRevenue || 0,
         averageDeposit: network.directReferrals > 0 ? (network.firstLineRevenue || 0) / network.directReferrals : 0,
         dailyNetworkEarnings: network.dailyNetworkEarnings || 0,
-        accumulatedNetworkEarnings: network.accumulatedNetworkEarnings || 0
-      });
+        accumulatedNetworkEarnings: network.accumulatedNetworkEarnings || 0,
+        // NUOVE INFORMAZIONI dal sistema aggiornato
+        networkBonusBreakdown: network.networkBonusBreakdown || [],
+        cashoutLimitInfo: network.cashoutLimitInfo || null,
+        differenceBonus: network.differenceBonus || 0,
+        sameLevelBonus: network.sameLevelBonusAmount || 0,
+        isEarningLimited: network.isEarningLimited || false,
+        originalDailyEarnings: network.originalDailyEarnings || (network.dailyNetworkEarnings || 0)
+      };
+      
+      // DEBUG: Log del network overview
+      console.log('[DEBUG] Dashboard: New networkOverview being set:', newNetworkOverview);
+      console.log('[DEBUG] Dashboard: totalTeamDeposits will be:', newNetworkOverview.totalNetworkDeposits);
+      console.log('[DEBUG] Dashboard: firstLineDeposits will be:', newNetworkOverview.firstLineDeposits);
+      
+      setNetworkOverview(newNetworkOverview);
 
       // Create recent activity from earnings
       if (earnings.recent && earnings.recent.length > 0) {
@@ -308,14 +361,28 @@ const Dashboard = () => {
           <div className="glass rounded-xl p-4 sm:p-6 hover:scale-105 transition-transform duration-200 border border-purple-500/20 hover:border-purple-500/40">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm font-medium">Max Cashout</p>
-                <p className="text-lg sm:text-2xl font-bold text-purple-400 truncate">{formatCurrency(userStats.maxCashout || 0)}</p>
-                <p className="text-xs text-purple-400 mt-1">
-                  {userStats.multiplier}x your deposit
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Cashout Limit</p>
+                <p className="text-lg sm:text-2xl font-bold text-purple-400 truncate">
+                  {networkOverview.cashoutLimitInfo ? 
+                    formatCurrency(networkOverview.cashoutLimitInfo.remainingEarnings) : 
+                    formatCurrency(userStats.maxCashout || 0)
+                  }
                 </p>
+                <p className="text-xs text-purple-400 mt-1">
+                  {networkOverview.cashoutLimitInfo ? 
+                    `${networkOverview.cashoutLimitInfo.maxMultiplier}x limit - Remaining` :
+                    `${userStats.multiplier}x your deposit`
+                  }
+                </p>
+                {networkOverview.isEarningLimited && (
+                  <div className="flex items-center mt-1">
+                    <AlertTriangle className="w-3 h-3 text-orange-400 mr-1" />
+                    <span className="text-xs text-orange-400">Earnings limited</span>
+                  </div>
+                )}
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-400 to-pink-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <Target className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
             </div>
           </div>
@@ -358,9 +425,9 @@ const Dashboard = () => {
           <div className="glass rounded-xl p-4 sm:p-6 hover:scale-105 transition-transform duration-200 border border-orange-500/20 hover:border-orange-500/40">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
-                <p className="text-gray-400 text-xs sm:text-sm font-medium">Team Revenue</p>
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Team Deposit</p>
                 <p className="text-lg sm:text-2xl font-bold text-orange-400 truncate">{formatCurrency(userStats.networkValue)}</p>
-                <p className="text-xs text-orange-400 mt-1">Total team volume</p>
+                <p className="text-xs text-orange-400 mt-1">Total team deposits</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-orange-400 to-red-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
                 <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -482,7 +549,7 @@ const Dashboard = () => {
                 <div className="text-2xl sm:text-3xl font-bold text-cyan-400 mb-2">
                   {formatCurrency(networkOverview.totalNetworkDeposits || 0)}
                 </div>
-                <div className="text-gray-300 font-medium text-sm sm:text-base">Total Network Deposits</div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Total Team Deposits</div>
                 <div className="text-xs text-gray-400 mt-1">
                   {((userStats.userLevel?.current?.network_bonus_rate || 0) * 100).toFixed(1)}% bonus rate
                 </div>
@@ -499,6 +566,97 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Network Bonus Breakdown - NUOVA SEZIONE */}
+        {networkOverview.networkBonusBreakdown && networkOverview.networkBonusBreakdown.length > 0 && (
+          <div className="mb-8">
+            <div className="glass rounded-xl p-4 sm:p-6 border border-cyan-500/20">
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center">
+                <Network className="w-5 h-5 text-cyan-400 mr-2" />
+                Network Bonus Breakdown
+                <span className="ml-auto text-sm text-gray-400">
+                  Daily: {formatCurrency(networkOverview.differenceBonus + networkOverview.sameLevelBonus)}
+                </span>
+              </h3>
+              
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-4 bg-black/20 rounded-xl border border-green-500/20">
+                  <div className="text-2xl font-bold text-green-400 mb-2">
+                    {formatCurrency(networkOverview.differenceBonus)}
+                  </div>
+                  <div className="text-sm text-gray-300">Difference Bonus</div>
+                  <div className="text-xs text-gray-500">From level differences</div>
+                </div>
+                
+                <div className="text-center p-4 bg-black/20 rounded-xl border border-blue-500/20">
+                  <div className="text-2xl font-bold text-blue-400 mb-2">
+                    {formatCurrency(networkOverview.sameLevelBonus)}
+                  </div>
+                  <div className="text-sm text-gray-300">Same Level Bonus</div>
+                  <div className="text-xs text-gray-500">From equal levels</div>
+                </div>
+                
+                <div className="text-center p-4 bg-black/20 rounded-xl border border-purple-500/20">
+                  <div className="text-2xl font-bold text-purple-400 mb-2">
+                    {networkOverview.networkBonusBreakdown.length}
+                  </div>
+                  <div className="text-sm text-gray-300">Active Users</div>
+                  <div className="text-xs text-gray-500">In your network</div>
+                </div>
+              </div>
+              
+              {/* Detailed Breakdown */}
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {networkOverview.networkBonusBreakdown.map((user, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-gray-700/50">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                        user.bonusType === 'difference' ? 'bg-green-500/20 text-green-400' :
+                        user.bonusType === 'same_level' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        L{user.level}
+                      </div>
+                      <div>
+                        <div className="text-white font-medium">{user.username}</div>
+                        <div className="text-xs text-gray-400">
+                          {formatCurrency(user.deposits)} deposits • {formatCurrency(user.dailyProduction)}/day
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <div className={`text-sm font-bold ${
+                        user.bonusType === 'difference' ? 'text-green-400' :
+                        user.bonusType === 'same_level' ? 'text-blue-400' :
+                        'text-gray-400'
+                      }`}>
+                        {user.calculatedBonus > 0 ? formatCurrency(user.calculatedBonus) : '$0.00'}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {user.bonusType === 'difference' && `${(user.bonusDifference * 100).toFixed(1)}% diff`}
+                        {user.bonusType === 'same_level' && 'Same level'}
+                        {user.bonusType === 'none' && 'No bonus'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {networkOverview.isEarningLimited && (
+                <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                  <div className="flex items-center">
+                    <AlertTriangle className="w-4 h-4 text-orange-400 mr-2" />
+                    <span className="text-sm text-orange-400">
+                      Daily earnings limited to {formatCurrency(networkOverview.originalDailyEarnings)} → {formatCurrency(networkOverview.dailyNetworkEarnings)} due to cashout limit
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Position Level and Progress */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-8">
@@ -541,7 +699,7 @@ const Dashboard = () => {
           <div className="glass rounded-xl p-4 sm:p-6 border border-blue-500/20 hover:border-blue-500/40 transition-colors duration-200">
             <h3 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center">
               <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 mr-2" />
-              Next Level Requirements
+              Next Level Progress
             </h3>
             {userStats.userLevel?.isMaxLevel ? (
               <div className="text-center py-8">
@@ -551,14 +709,102 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="text-center mb-4">
-                  <h4 className={`text-lg font-bold ${getLevelColor(userStats.userLevel?.next?.id || 1)} mb-2`}>
-                    {userStats.userLevel?.next?.name || 'Next Level'}
+                {/* Next Level Info */}
+                <div className="text-center mb-4 p-4 bg-black/20 rounded-xl border border-blue-500/20">
+                  <h4 className={`text-lg font-bold ${getLevelColor(userStats.userLevel?.current?.level_id + 1 || 1)} mb-2`}>
+                    {userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.name || `Posizione ${userStats.userLevel?.current?.level_id + 1}`}
                   </h4>
-                  <p className="text-sm text-gray-400">
-                    {userStats.userLevel?.next?.requirements || 'Complete current level requirements'}
+                  <p className="text-sm text-gray-400 mb-3">
+                    {userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.description || 'Next level requirements'}
                   </p>
+                  
+                  {/* Bonus Rate Upgrade */}
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500">Current Bonus</div>
+                      <div className="text-lg font-bold text-goat-gold">
+                        {(userStats.userLevel?.current?.network_bonus_rate * 100 || 0).toFixed(1)}%
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500">Next Level Bonus</div>
+                      <div className="text-lg font-bold text-green-400">
+                        {((userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.network_bonus_rate || 0) * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Requirements Progress */}
+                <div className="space-y-3">
+                  {/* Personal Deposits */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">Personal Deposits</span>
+                      <span className="text-white font-semibold text-sm">
+                        {formatCurrency(userStats.personalDeposits)} / {formatCurrency(userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.required_personal_deposit || 0)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${Math.min(100, (userStats.personalDeposits / (userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.required_personal_deposit || 1)) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* First Line Revenue */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">First Line Revenue</span>
+                      <span className="text-white font-semibold text-sm">
+                        {formatCurrency(networkOverview.firstLineDeposits)} / {formatCurrency(userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.required_first_line_revenue || 0)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-yellow-400 to-orange-500 h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${Math.min(100, (networkOverview.firstLineDeposits / (userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.required_first_line_revenue || 1)) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Team Deposits */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">Team Deposits</span>
+                      <span className="text-white font-semibold text-sm">
+                        {formatCurrency(networkOverview.totalNetworkDeposits)} / {formatCurrency(userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.required_team_deposit || 0)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-purple-400 to-pink-500 h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${Math.min(100, (networkOverview.totalNetworkDeposits / (userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.required_team_deposit || 1)) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Qualification Requirements (se applicabili) */}
+                {userStats.userLevel?.current?.level_id >= 1 && (
+                  <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <div className="flex items-center mb-2">
+                      <Info className="w-4 h-4 text-yellow-400 mr-2" />
+                      <span className="text-sm text-yellow-400 font-medium">Special Requirements</span>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      {userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.requirements_text || 
+                       `Position ${userStats.userLevel?.current?.level_id + 1} requires special qualifications`}
+                    </p>
+                  </div>
+                )}
 
                 {userStats.userLevel?.progress?.requirements?.map((req, index) => (
                   <div key={index} className="space-y-2">
@@ -671,6 +917,17 @@ const Dashboard = () => {
             <p className="text-sm text-gray-400">Grow your network</p>
             <div className="mt-2 sm:mt-3 text-xs text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               Build your referral empire →
+            </div>
+          </button>
+          
+          <button className="glass rounded-xl p-4 sm:p-6 text-center hover:scale-105 transition-all duration-200 border border-cyan-500/20 hover:border-cyan-500/40 group">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:shadow-lg transition-shadow duration-200">
+              <Eye className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            </div>
+            <h4 className="font-semibold text-white text-base sm:text-lg mb-2">View Network</h4>
+            <p className="text-sm text-gray-400">Complete network overview</p>
+            <div className="mt-2 sm:mt-3 text-xs text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              {networkOverview.networkBonusBreakdown.length} active users →
             </div>
           </button>
           
