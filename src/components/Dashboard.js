@@ -23,7 +23,8 @@ import {
   Network,
   TrendingUp as TrendingUpAlt,
   Coins,
-  Shield
+  Shield,
+  RotateCcw
 } from 'lucide-react';
 import { 
   calculatePersonalCapitalReturns,
@@ -145,7 +146,7 @@ const Dashboard = () => {
         totalDeposits: deposits.totalDeposits,
         personalDeposits: deposits.totalDeposits,
         monthlyEarnings: deposits.monthlyReturn,
-        // BUSINESS LOGIC: Personal deposits = monthly cashout only, daily earnings = from network only
+        // BUSINESS LOGIC: Personal deposits = cashout on request, daily earnings = from network only
         dailyEarnings: network.dailyNetworkEarnings || 0,
         accumulatedEarnings: network.accumulatedNetworkEarnings || 0,
         
@@ -337,24 +338,84 @@ const Dashboard = () => {
   };
 
   const handleCashout = async () => {
-    const accumulatedAmount = realTimeReturns?.accumulatedAmount || userStats.personalCapitalReturns?.accumulatedAmount || 0;
+    const personalAccumulated = realTimeReturns?.accumulatedAmount || userStats.personalCapitalReturns?.accumulatedAmount || 0;
+    const dailyNetworkEarnings = userStats.dailyEarnings || 0;
+    const totalBusinessAmount = personalAccumulated + dailyNetworkEarnings;
     
-    if (accumulatedAmount <= 0) {
-      alert('No personal capital returns available for cashout');
+    if (totalBusinessAmount < 20) {
+      alert(`Insufficient balance for cashout.
+
+Current Total Business: ${formatCurrencyPrecise(totalBusinessAmount, 6)}
+Minimum Required: $20.000000
+
+Please accumulate more earnings before requesting a cashout.`);
       return;
     }
     
     // In a real app, this would trigger a blockchain transaction
-    alert(`Cashout requested for ${formatCurrencyPrecise(accumulatedAmount, 6)}. Payment will arrive at midnight.`);
+    alert(`Total Business Cashout requested:
+    
+Personal Capital Returns: ${formatCurrencyPrecise(personalAccumulated, 6)}
+Daily Network Earnings: ${formatCurrencyPrecise(dailyNetworkEarnings, 6)}
+Total Amount: ${formatCurrencyPrecise(totalBusinessAmount, 6)}
+
+Cashout request submitted successfully. 
+
+Payment processing: Requests submitted before 00:00 Malaysian Time are processed the same day.`);
     
     // Update stats (in real app, this would come from blockchain)
     setUserStats(prev => ({
       ...prev,
-      pendingCashout: accumulatedAmount,
+      pendingCashout: totalBusinessAmount,
       personalCapitalReturns: {
         ...prev.personalCapitalReturns,
         accumulatedAmount: 0
-      }
+      },
+      dailyEarnings: 0
+    }));
+    
+    // Reset real-time returns
+    setRealTimeReturns(null);
+  };
+
+  const handleCompound = async () => {
+    const personalAccumulated = realTimeReturns?.accumulatedAmount || userStats.personalCapitalReturns?.accumulatedAmount || 0;
+    const dailyNetworkEarnings = userStats.dailyEarnings || 0;
+    const totalBusinessAmount = personalAccumulated + dailyNetworkEarnings;
+    
+    if (totalBusinessAmount < 20) {
+      alert(`Insufficient balance for compound.
+
+Current Total Business: ${formatCurrencyPrecise(totalBusinessAmount, 6)}
+Minimum Required: $20.000000
+
+Please accumulate more earnings before requesting a compound.`);
+      return;
+    }
+    
+    // In a real app, this would trigger a blockchain transaction
+    alert(`Total Business Compound requested:
+    
+Personal Capital Returns: ${formatCurrencyPrecise(personalAccumulated, 6)}
+Daily Network Earnings: ${formatCurrencyPrecise(dailyNetworkEarnings, 6)}
+Total Amount: ${formatCurrencyPrecise(totalBusinessAmount, 6)}
+
+Compound successful! Amount added to Personal Deposits as already-utilized returns.
+
+Note: Compounded amounts are considered already-enjoyed returns and will not generate additional earnings.`);
+    
+    // Update stats (in real app, this would come from blockchain)
+    setUserStats(prev => ({
+      ...prev,
+      totalDeposits: (prev.totalDeposits || 0) + totalBusinessAmount,
+      personalDeposits: (prev.personalDeposits || 0) + totalBusinessAmount,
+      personalCapitalReturns: {
+        ...prev.personalCapitalReturns,
+        accumulatedAmount: 0
+      },
+      dailyEarnings: 0,
+      // Add to utilized returns tracking
+      utilizedReturns: (prev.utilizedReturns || 0) + totalBusinessAmount
     }));
     
     // Reset real-time returns
@@ -419,7 +480,7 @@ const Dashboard = () => {
                   {userStats.canEarn ? formatCurrency(userStats.dailyEarnings) : '$0.00'}
                 </p>
                 <p className="text-xs text-goat-gold mt-1">
-                  {userStats.canEarn ? 'Credited at 00:00' : 'Increase deposit to earn'}
+                  {userStats.canEarn ? 'Available for cashout' : 'Increase deposit to earn'}
                 </p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-goat-gold to-orange-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
@@ -509,20 +570,20 @@ const Dashboard = () => {
         {/* DUAL CREDIT SYSTEM - Personal Capital & Network Earnings */}
         <div className="mb-8 space-y-6">
           
-          {/* Personal Capital Returns - Monthly Cashout */}
+          {/* Personal Capital Returns - Manual Cashout */}
           <div className="glass rounded-2xl p-4 sm:p-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
               <div className="flex items-center">
                 <Download className="w-6 h-6 sm:w-8 sm:h-8 text-green-400 mr-3" />
                 <div>
                   <h3 className="text-xl sm:text-2xl font-bold text-white">Personal Capital Returns</h3>
-                  <p className="text-sm text-gray-400">Monthly cashout system</p>
+                  <p className="text-sm text-gray-400">Manual cashout system</p>
                 </div>
               </div>
               <div className="text-center sm:text-right w-full sm:w-auto">
-                <div className="text-sm text-gray-400">Next Cashout</div>
+                <div className="text-sm text-gray-400">Status</div>
                 <div className="text-green-400 font-semibold">
-                  {userStats.cashoutCountdown?.days || 0} days
+                  Available for cashout
                 </div>
               </div>
             </div>
@@ -568,52 +629,39 @@ const Dashboard = () => {
               </div>
             </div>
             
-            <div className="flex items-center justify-center">
-              <button
-                onClick={handleCashout}
-                disabled={(realTimeReturns?.accumulatedAmount || userStats.personalCapitalReturns?.accumulatedAmount || 0) <= 0}
-                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-emerald-500 hover:to-green-500 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-xl text-base sm:text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center w-full sm:w-auto justify-center"
-              >
-                <Download className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
-                <span className="truncate">
-                  Request Monthly Cashout
-                </span>
-              </button>
-            </div>
-            
             <div className="mt-4 text-center">
               <div className="flex items-center justify-center text-sm text-gray-400">
                 <Clock className="w-4 h-4 mr-2" />
-                Monthly cashouts available on the 1st of each month
+                Request cashouts before 00:00 Malaysian Time
               </div>
             </div>
           </div>
 
-          {/* Daily Network Earnings - Credited Daily */}
+          {/* Network Earnings */}
           <div className="glass rounded-2xl p-4 sm:p-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
               <div className="flex items-center">
                 <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400 mr-3" />
-                <div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-white">Network Earnings</h3>
-                  <p className="text-sm text-gray-400">Daily credits at 00:00</p>
-                </div>
-              </div>
-              <div className="text-center sm:text-right w-full sm:w-auto">
-                <div className="text-sm text-gray-400">Next Credit</div>
-                <div className="text-blue-400 font-semibold">
-                  {userStats.networkCreditCountdown?.hours || 0}h {userStats.networkCreditCountdown?.minutes || 0}m
-                </div>
-              </div>
+                                 <div>
+                   <h3 className="text-xl sm:text-2xl font-bold text-white">Network Earnings</h3>
+                   <p className="text-sm text-gray-400">Earnings from your network</p>
+                 </div>
+               </div>
+               <div className="text-center sm:text-right w-full sm:w-auto">
+                 <div className="text-sm text-gray-400">Status</div>
+                 <div className="text-blue-400 font-semibold">
+                   Available for cashout
+                 </div>
+               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
               <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-blue-500/20">
                 <div className="text-2xl sm:text-3xl font-bold text-blue-400 mb-2">
-                  {formatCurrency(userStats.dailyEarnings || 0)}
+                  {formatCurrencyPrecise(userStats.dailyEarnings || 0, 6)}
                 </div>
                 <div className="text-gray-300 font-medium text-sm sm:text-base">Daily Network Earnings</div>
-                <div className="text-xs text-gray-400 mt-1">From your network deposits</div>
+                <div className="text-xs text-gray-400 mt-1">Your % from network deposits</div>
               </div>
               
               <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-purple-500/20">
@@ -639,7 +687,94 @@ const Dashboard = () => {
               <div className="inline-flex items-center space-x-2 bg-black/20 rounded-xl px-4 py-2 border border-blue-500/20">
                 <Activity className="w-4 h-4 text-blue-400" />
                 <span className="text-sm text-gray-400">
-                  Next credit automatically processed at 00:00
+                  Submit cashout requests before 00:00 Malaysian Time for same-day processing
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Business at Second - NEW SECTION */}
+          <div className="glass rounded-2xl p-4 sm:p-6 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
+              <div className="flex items-center">
+                <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400 mr-3" />
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white">Total Business at Second</h3>
+                  <p className="text-sm text-gray-400">Complete earnings overview</p>
+                </div>
+              </div>
+              <div className="text-center sm:text-right w-full sm:w-auto">
+                <div className="text-sm text-gray-400">Updated</div>
+                <div className="text-purple-400 font-semibold">Real-time</div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+              {/* Personal Capital Returns */}
+              <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-green-500/20">
+                <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
+                  {realTimeReturns ? 
+                    formatCurrencyPrecise(realTimeReturns.accumulatedAmount, 6) : 
+                    formatCurrencyPrecise(userStats.personalCapitalReturns?.accumulatedAmount || 0, 6)
+                  }
+                </div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Accumulated Returns</div>
+                <div className="text-xs text-gray-400 mt-1">From personal deposits</div>
+              </div>
+              
+              {/* Daily Network Earnings */}
+              <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-blue-500/20">
+                <div className="text-2xl sm:text-3xl font-bold text-blue-400 mb-2">
+                  {formatCurrencyPrecise(userStats.dailyEarnings || 0, 6)}
+                </div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Daily Network Earnings</div>
+                <div className="text-xs text-gray-400 mt-1">Your % from network deposits</div>
+              </div>
+              
+              {/* Total Business */}
+              <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-purple-500/20">
+                <div className="text-2xl sm:text-3xl font-bold text-purple-400 mb-2">
+                  {formatCurrencyPrecise(
+                    (realTimeReturns?.accumulatedAmount || userStats.personalCapitalReturns?.accumulatedAmount || 0) + 
+                    (userStats.dailyEarnings || 0), 
+                    6
+                  )}
+                </div>
+                <div className="text-gray-300 font-medium text-sm sm:text-base">Total Business</div>
+                <div className="text-xs text-gray-400 mt-1">Personal + Network earnings</div>
+              </div>
+            </div>
+            
+            {/* Cashout & Compound Section */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-center mb-4">
+              <button
+                onClick={handleCashout}
+                disabled={((realTimeReturns?.accumulatedAmount || userStats.personalCapitalReturns?.accumulatedAmount || 0) + (userStats.dailyEarnings || 0)) < 20}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-xl text-base sm:text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center w-full sm:w-auto justify-center"
+              >
+                <Download className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
+                <span className="truncate">
+                  Request Cashout
+                </span>
+              </button>
+              
+              <button
+                onClick={handleCompound}
+                disabled={((realTimeReturns?.accumulatedAmount || userStats.personalCapitalReturns?.accumulatedAmount || 0) + (userStats.dailyEarnings || 0)) < 20}
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-xl text-base sm:text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center w-full sm:w-auto justify-center"
+              >
+                <RotateCcw className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
+                <span className="truncate">
+                  Compound Earnings
+                </span>
+              </button>
+            </div>
+            
+            <div className="text-center">
+              <div className="inline-flex items-center space-x-2 bg-black/20 rounded-xl px-4 py-2 border border-purple-500/20">
+                <Clock className="w-4 h-4 text-purple-400" />
+                <span className="text-sm text-gray-400">
+                  Cashout: Withdraw to wallet | Compound: Reinvest as deposit • Minimum $20.00 required
                 </span>
               </div>
             </div>
@@ -1047,9 +1182,9 @@ const Dashboard = () => {
                 <div className="text-xs text-gray-500 mt-1">At Position 8</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-purple-400 mb-1">00:00</div>
-                <div className="text-gray-400 text-sm">Daily Credits</div>
-                <div className="text-xs text-gray-500 mt-1">Every midnight</div>
+                <div className="text-2xl font-bold text-purple-400 mb-1">Manual</div>
+                <div className="text-gray-400 text-sm">Cashout System</div>
+                <div className="text-xs text-gray-500 mt-1">Request anytime</div>
               </div>
             </div>
             
