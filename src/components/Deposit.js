@@ -21,30 +21,8 @@ import {
 import { goatApi } from '../api/goat';
 
 const Deposit = () => {
-  const { isConnected, account, sendTransaction, usdtBalance, getUSDTBalance } = useWallet();
+  const { isConnected, account, sendTransaction, usdtBalance } = useWallet();
   const [depositAmount, setDepositAmount] = useState('');
-  const [localUsdtBalance, setLocalUsdtBalance] = useState(usdtBalance || '0');
-
-  // Update local balance when context changes
-  useEffect(() => {
-    setLocalUsdtBalance(usdtBalance || '0');
-  }, [usdtBalance]);
-
-  // Force refresh balance on mount if connected
-  useEffect(() => {
-    const refreshBalance = async () => {
-      if (isConnected && account && getUSDTBalance) {
-        try {
-          const freshBalance = await getUSDTBalance(account);
-          setLocalUsdtBalance(freshBalance || '0');
-        } catch (error) {
-          console.error('Error refreshing USDT balance:', error);
-        }
-      }
-    };
-
-    refreshBalance();
-  }, [isConnected, account, getUSDTBalance]);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState(null);
@@ -126,7 +104,7 @@ const Deposit = () => {
     }
 
     // Check USDT balance
-    const usdtBal = parseFloat(localUsdtBalance || '0');
+    const usdtBal = parseFloat(usdtBalance || '0');
     const depositAmt = parseFloat(depositAmount);
     
     if (usdtBal < depositAmt) {
@@ -157,8 +135,9 @@ const Deposit = () => {
             token: 'USDT'
           });
 
-          const tierMessage = returnInfo.rate > 0 
-            ? ` (${returnInfo.label} tier - ${returnInfo.rate}% monthly)` 
+          const returnRate = calculateReturnRate(finalAmount);
+          const tierMessage = returnRate.rate > 0 
+            ? ` (${returnRate.label} tier - ${returnRate.rate}% monthly)` 
             : ' (No returns on this amount)';
           
           setTransactionStatus({
@@ -241,7 +220,7 @@ const Deposit = () => {
                   Amount (USD)
                 </label>
                 <span className="text-sm text-gray-400">
-                  Balance: <span className="text-goat-gold font-medium">{formatCurrency(parseFloat(localUsdtBalance || '0'))} USDT</span>
+                  Balance: <span className="text-goat-gold font-medium">{formatCurrency(parseFloat(usdtBalance || '0'))} USDT</span>
                 </span>
               </div>
               <div className="relative">
@@ -443,18 +422,12 @@ const Deposit = () => {
                         <span className="text-gray-300">
                           ${tier.min} - ${tier.max === Infinity ? '∞' : tier.max}
                         </span>
-                        <div className="text-xs text-gray-500">
-                          Base: {formatPercentage(tier.basePercentage)}
-                        </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <span className="text-goat-gold font-semibold">
-                        {formatPercentage(tier.maxPercentage)}
+                        {tier.rate}% Monthly
                       </span>
-                      <div className="text-xs text-pink-500">
-                        con Instagram
-                      </div>
                     </div>
                   </div>
                 ))}

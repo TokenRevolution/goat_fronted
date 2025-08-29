@@ -31,6 +31,7 @@ import {
   getTimeUntilCashout,
   getTimeUntilDailyCredit,
   formatCurrency,
+  formatCurrencyPrecise,
   formatPercentage,
   getLevelColor,
   getLevelBadgeColor
@@ -75,6 +76,9 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Real-time personal capital returns (updated every second)
+  const [realTimeReturns, setRealTimeReturns] = useState(null);
+  
   // Simplified fetch function for dashboard data
   const fetchDashboardData = useCallback(async (isConnected, account) => {
     if (!isConnected || !account) {
@@ -108,8 +112,11 @@ const Dashboard = () => {
       console.log('[DEBUG] Dashboard: NUOVE INFO - differenceBonus:', network?.differenceBonus);
       console.log('[DEBUG] Dashboard: NUOVE INFO - sameLevelBonusAmount:', network?.sameLevelBonusAmount);
 
-      // Calculate DUAL CREDIT SYSTEM earnings
-      const personalCapitalReturns = calculatePersonalCapitalReturns(deposits.totalDeposits, 30);
+      // Calculate DUAL CREDIT SYSTEM earnings - use actual days since most recent deposit
+      const personalCapitalReturns = calculatePersonalCapitalReturns(deposits.totalDeposits, deposits.mostRecentDepositDate);
+      
+      // Store deposit date for real-time updates
+      personalCapitalReturns.mostRecentDepositDate = deposits.mostRecentDepositDate;
       const dailyNetworkEarnings = calculateDailyNetworkEarnings(position.current, network.teamRevenue, network.sameLevelRevenue || 0);
       const cashoutCountdown = getTimeUntilCashout();
       const networkCreditCountdown = getTimeUntilDailyCredit();
@@ -138,7 +145,9 @@ const Dashboard = () => {
         networkValue: network.teamRevenue,
         currentRank: position.current.name,
         rankLevel: position.current.level_id,
-        nextRankProgress: position.progress,
+        nextRankProgress: position.progress 
+          ? (position.progress.personalDepositProgress + position.progress.firstLineProgress + position.progress.teamRevenueProgress) / 3 * 100
+          : 0,
         returnRate: deposits.returnRate,
         returnTier: deposits.returnTier,
         canEarn: deposits.canEarn,
@@ -212,6 +221,32 @@ const Dashboard = () => {
     }
   }, [isConnected, account, fetchDashboardData]);
 
+  // Effect for real-time updates of personal capital returns (every second)
+  useEffect(() => {
+    if (!userStats.personalDeposits || !userStats.personalCapitalReturns) return;
+    
+    const mostRecentDepositDate = userStats.personalCapitalReturns.mostRecentDepositDate;
+    if (!mostRecentDepositDate) return;
+    
+    // Update real-time returns immediately
+    const updateRealTimeReturns = () => {
+      const realTimeData = calculatePersonalCapitalReturns(userStats.personalDeposits, mostRecentDepositDate);
+      setRealTimeReturns(realTimeData);
+      console.log('[DEBUG] Real-time update:', realTimeData);
+    };
+    
+    // Initial update
+    updateRealTimeReturns();
+    
+    // Set up timer to update every second
+    const timer = setInterval(updateRealTimeReturns, 1000);
+    
+    // Cleanup timer on unmount or dependency change
+    return () => {
+      clearInterval(timer);
+    };
+  }, [userStats.personalDeposits, userStats.personalCapitalReturns]);
+
   if (!isConnected) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -275,20 +310,28 @@ const Dashboard = () => {
   };
 
   const handleCashout = async () => {
-    if (userStats.accumulatedEarnings <= 0) {
-      alert('No earnings available for cashout');
+    const accumulatedAmount = realTimeReturns?.accumulatedAmount || userStats.personalCapitalReturns?.accumulatedAmount || 0;
+    
+    if (accumulatedAmount <= 0) {
+      alert('No personal capital returns available for cashout');
       return;
     }
     
     // In a real app, this would trigger a blockchain transaction
-    alert(`Cashout requested for ${formatCurrency(userStats.accumulatedEarnings)}. Payment will arrive at midnight.`);
+    alert(`Cashout requested for ${formatCurrencyPrecise(accumulatedAmount)}. Payment will arrive at midnight.`);
     
     // Update stats (in real app, this would come from blockchain)
     setUserStats(prev => ({
       ...prev,
-      pendingCashout: prev.accumulatedEarnings,
-      accumulatedEarnings: 0
+      pendingCashout: accumulatedAmount,
+      personalCapitalReturns: {
+        ...prev.personalCapitalReturns,
+        accumulatedAmount: 0
+      }
     }));
+    
+    // Reset real-time returns
+    setRealTimeReturns(null);
   };
 
   return (
@@ -460,11 +503,17 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
               <div className="text-center p-3 sm:p-4 bg-black/20 rounded-xl border border-green-500/20">
                 <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
-                  {formatCurrency(userStats.personalCapitalReturns?.accumulatedAmount || 0)}
+                  {realTimeReturns ? 
+                    formatCurrencyPrecise(realTimeReturns.accumulatedAmount) : 
+                    formatCurrency(userStats.personalCapitalReturns?.accumulatedAmount || 0)
+                  }
                 </div>
                 <div className="text-gray-300 font-medium text-sm sm:text-base">Accumulated Returns</div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {userStats.personalCapitalReturns?.daysAccumulated || 0} days accumulated
+                  {realTimeReturns ? 
+                    `${realTimeReturns.daysAccumulated.toFixed(6)} days accumulated` :
+                    `${userStats.personalCapitalReturns?.daysAccumulated || 0} days accumulated`
+                  }
                 </div>
               </div>
               
@@ -492,7 +541,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-center">
               <button
                 onClick={handleCashout}
-                disabled={(userStats.personalCapitalReturns?.accumulatedAmount || 0) <= 0}
+                disabled={(realTimeReturns?.accumulatedAmount || userStats.personalCapitalReturns?.accumulatedAmount || 0) <= 0}
                 className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-emerald-500 hover:to-green-500 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-xl text-base sm:text-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center w-full sm:w-auto justify-center"
               >
                 <Download className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
@@ -682,7 +731,7 @@ const Dashboard = () => {
               {!userStats.userLevel?.isMaxLevel && (
                 <div className="mt-4">
                   <div className="flex justify-between text-sm text-gray-400 mb-1">
-                    <span>Progress to {userStats.userLevel?.next?.name}</span>
+                    <span>Progress to {userStats.userLevel?.progress?.nextLevel || "Next Level"}</span>
                     <span className="text-goat-gold font-semibold">{Math.round(userStats.nextRankProgress)}%</span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-3">
@@ -836,19 +885,19 @@ const Dashboard = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-300">Network Bonus:</span>
                       <span className="text-goat-gold font-semibold">
-                        {userStats.userLevel?.next?.networkBonus || 0}%
+                        {((userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.network_bonus_rate || 0) * 100).toFixed(1)}%
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-300">Max Multiplier:</span>
                       <span className="text-goat-gold font-semibold">
-                        {userStats.userLevel?.next?.maxMultiplier || 0}x
+                        {userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.max_multiplier || 0}x
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-300">Same Level Bonus:</span>
                       <span className="text-goat-gold font-semibold">
-                        {userStats.userLevel?.next?.sameLevel || 0}%
+                        {((userStats.userLevel?.available?.[userStats.userLevel?.current?.level_id + 1]?.same_level_bonus_rate || 0) * 100).toFixed(1)}%
                       </span>
                     </div>
                   </div>

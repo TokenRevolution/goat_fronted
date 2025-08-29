@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
 import { goatApi } from '../api/goat';
-import { Trophy, Users, TrendingUp, Shield, Zap, Star, ArrowRight, Instagram, Heart, MessageCircle, CreditCard, AlertTriangle, CheckCircle, Upload, Gift } from 'lucide-react';
+import { Trophy, Users, TrendingUp, Shield, Zap, Star, ArrowRight, Heart, MessageCircle, CreditCard, AlertTriangle, CheckCircle, Upload, Gift } from 'lucide-react';
 
 const Home = () => {
   const { isConnected, isUserRegistered, registrationChecked } = useWallet();
@@ -92,7 +92,7 @@ const Home = () => {
     {
       icon: TrendingUp,
       title: 'High Returns',
-      description: 'Earn up to 16% monthly returns (15% base + 1% Instagram bonus)',
+      description: 'Earn up to 10% monthly returns (Diamond tier)',
       color: 'from-green-400 to-blue-500'
     },
     {
@@ -300,134 +300,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Instagram Bonus Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-pink-500/10 to-purple-500/10">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center mb-6">
-              <Instagram className="w-12 h-12 text-pink-500 mr-4" />
-              <h2 className="text-4xl md:text-5xl font-bold">
-                <span className="gradient-text">Instagram</span> Bonus
-              </h2>
-            </div>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Segui la nostra pagina Instagram e guadagna un <span className="text-pink-500 font-bold">+1% bonus giornaliero</span> sui tuoi rendimenti!
-            </p>
-          </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <div className="glass rounded-xl p-6">
-                <h3 className="text-2xl font-bold text-white mb-4">Come Funziona</h3>
-                <div className="space-y-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                      <span className="text-white font-bold text-sm">1</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold">Segui @seeker_insearchofurtune</p>
-                      <p className="text-gray-400 text-sm leading-relaxed">Segui la nostra pagina Instagram ufficiale</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                      <Heart className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold">Like giornaliero</p>
-                      <p className="text-gray-400 text-sm leading-relaxed">Metti like ai post quotidiani</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                      <MessageCircle className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold">Commenta</p>
-                      <p className="text-gray-400 text-sm leading-relaxed">Lascia un commento significativo</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <a
-                  href="https://instagram.com/seeker_insearchofurtune"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-purple-600 hover:to-pink-500 text-white font-bold text-lg rounded-lg transition-all duration-200 transform hover:scale-105"
-                >
-                  <Instagram className="w-6 h-6 mr-3" />
-                  Segui su Instagram
-                </a>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="glass rounded-xl p-6 border-2 border-pink-500/30">
-                <h3 className="text-2xl font-bold text-white mb-6 text-center">Rendimenti Potenziati</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 bg-black/30 rounded-lg">
-                    <div>
-                      <span className="text-gray-300">≤ $100</span>
-                      <div className="text-xs text-gray-500">Base: 8%</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-bold text-green-400">9%</span>
-                      <div className="text-xs text-pink-500">+1% bonus</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center p-3 bg-black/30 rounded-lg">
-                    <div>
-                      <span className="text-gray-300">$100 - $500</span>
-                      <div className="text-xs text-gray-500">Base: 10%</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-bold text-blue-400">11%</span>
-                      <div className="text-xs text-pink-500">+1% bonus</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center p-3 bg-black/30 rounded-lg">
-                    <div>
-                      <span className="text-gray-300">$500 - $1,000</span>
-                      <div className="text-xs text-gray-500">Base: 12%</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-bold text-purple-400">13%</span>
-                      <div className="text-xs text-pink-500">+1% bonus</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center p-3 bg-black/30 rounded-lg border border-goat-gold/30">
-                    <div>
-                      <span className="text-gray-300">&gt; $1,000</span>
-                      <div className="text-xs text-gray-500">Base: 15%</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-bold text-goat-gold">16%</span>
-                      <div className="text-xs text-pink-500">+1% bonus</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl p-6 border border-pink-500/30">
-                <div className="text-center">
-                  <Star className="w-8 h-8 text-goat-gold mx-auto mb-3" />
-                  <p className="text-white font-semibold mb-2">Attività Giornaliera = Bonus Permanente</p>
-                  <p className="text-gray-300 text-sm">
-                    Mantieni l'attività quotidiana per ricevere il bonus del +1% ogni giorno sui tuoi guadagni!
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* WeFi Card Reward Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-500/10 to-cyan-500/10">

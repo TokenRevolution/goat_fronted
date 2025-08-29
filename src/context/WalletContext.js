@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { ethers } from 'ethers';
 import { EthereumProvider } from '@walletconnect/ethereum-provider';
-import { getCurrentNetwork, switchToNetwork, isValidNetwork, getNetworkByChainId, getUSDTAddress } from '../config/blockchain';
+import { getCurrentNetwork, switchToNetwork, isValidNetwork, getNetworkByChainId } from '../config/blockchain';
 import { authApi } from '../api/auth';
 import { makeApiRequest, cancelAllApiRequests } from '../utils/ApiManager';
 
@@ -152,7 +152,7 @@ export const WalletProvider = ({ children }) => {
             setBalance(ethers.utils.formatEther(balance));
             
             // Get USDT balance
-            const usdtBal = await getUSDTBalance(account, networkInfo);
+            const usdtBal = await getUSDTBalance(account);
             setUsdtBalance(usdtBal);
             console.log('[DEBUG] WalletContext: Balances loaded - BNB:', ethers.utils.formatEther(balance), 'USDT:', usdtBal);
           }
@@ -178,7 +178,7 @@ export const WalletProvider = ({ children }) => {
                   const balance = await provider.getBalance(accounts[0]);
                   setBalance(ethers.utils.formatEther(balance));
                   
-                  const usdtBal = await getUSDTBalance(accounts[0], currentNetwork);
+                  const usdtBal = await getUSDTBalance(accounts[0]);
                   setUsdtBalance(usdtBal);
                 }
               } catch (error) {
@@ -206,7 +206,7 @@ export const WalletProvider = ({ children }) => {
                   setBalance(ethers.utils.formatEther(balance));
                 }).catch(console.error);
                 
-                getUSDTBalance(account, networkInfo).then(usdtBal => {
+                getUSDTBalance(account).then(usdtBal => {
                   setUsdtBalance(usdtBal);
                 }).catch(console.error);
               }
@@ -308,7 +308,7 @@ export const WalletProvider = ({ children }) => {
         setBalance(ethers.utils.formatEther(balance));
         
         // Get USDT balance
-        const usdtBal = await getUSDTBalance(account, networkInfo);
+        const usdtBal = await getUSDTBalance(account);
         setUsdtBalance(usdtBal);
         console.log('[DEBUG] WalletContext: Balances loaded - BNB:', ethers.utils.formatEther(balance), 'USDT:', usdtBal);
       }
@@ -597,22 +597,30 @@ export const WalletProvider = ({ children }) => {
   };
 
   // Get USDT balance
-  const getUSDTBalance = useCallback(async (address, network = null) => {
+  // FUNZIONA: Get USDT balance DIRETTO
+  const getUSDTBalance = useCallback(async (walletAddress) => {
     try {
-      if (!provider || !address) return '0';
+      if (!provider || !walletAddress) return '0';
       
-      const targetNetwork = network || currentNetwork;
-      if (!targetNetwork) {
-        console.log('[DEBUG] WalletContext: No network available for USDT balance');
-        return '0';
-      }
+      console.log('[DEBUG] WalletContext: Getting USDT balance for:', walletAddress);
       
-      const usdtAddress = getUSDTAddress(targetNetwork);
+      // INDIRIZZO DIRETTO - BASTA CAGATE!
+      const isMainnet = currentNetwork?.chainId === 56;
+      const usdtAddress = isMainnet 
+        ? '0x55d398326f99059fF775485246999027B3197955'  // BSC Mainnet USDT
+        : '0x4bC3A5ae91ab34380464DBD17233178fbB861AC0'; // BSC Testnet USDT
+      
+      console.log('[DEBUG] WalletContext: Using USDT address:', usdtAddress, 'Network:', isMainnet ? 'mainnet' : 'testnet');
+      
+      // Query blockchain for balance (18 decimals)
       const usdtContract = new ethers.Contract(usdtAddress, USDT_ABI, provider);
-      const balance = await usdtContract.balanceOf(address);
+      const balance = await usdtContract.balanceOf(walletAddress);
+      const formattedBalance = ethers.utils.formatUnits(balance, 18);
       
-      // Token has 18 decimals (not standard USDT 6)
-      return ethers.utils.formatUnits(balance, 18);
+      console.log('[DEBUG] WalletContext: Raw balance:', balance.toString());
+      console.log('[DEBUG] WalletContext: Formatted balance:', formattedBalance);
+      return formattedBalance;
+      
     } catch (error) {
       console.error('[DEBUG] WalletContext: Error getting USDT balance:', error);
       return '0';
@@ -626,9 +634,20 @@ export const WalletProvider = ({ children }) => {
       
       console.log('[DEBUG] WalletContext: Sending USDT transfer', { to, amount });
       
-      // Get USDT contract address for current network
-      const usdtAddress = getUSDTAddress(currentNetwork);
-      console.log('[DEBUG] WalletContext: USDT contract address:', usdtAddress);
+      // Get USDT contract address from backend
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const isMainnet = currentNetwork?.chainId === 56;
+      const networkParam = isMainnet ? 'mainnet' : 'testnet';
+      
+      const response = await fetch(`${API_URL}/api/wallet/usdt-address?network=${networkParam}`);
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error('Failed to get USDT address from backend');
+      }
+      
+      const usdtAddress = data.usdtAddress;
+      console.log('[DEBUG] WalletContext: USDT address from backend:', usdtAddress);
       
       // Create USDT contract instance
       const usdtContract = new ethers.Contract(usdtAddress, USDT_ABI, signer);

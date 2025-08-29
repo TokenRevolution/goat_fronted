@@ -13,13 +13,17 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { 
-  generateReferralCode, 
-  calculateReferralBonus, 
   formatCurrency,
   formatPercentage 
-} from '../utils/platformUtils';
+} from '../utils/goatBusinessLogic';
 import { goatApi } from '../api/goat';
 import { referralsApi } from '../api/referrals';
+
+// Generate referral code from wallet address
+const generateReferralCode = (address) => {
+  if (!address) return '';
+  return address.slice(0, 10).toUpperCase() + 'REF';
+};
 
 const Referrals = () => {
   const { isConnected, account } = useWallet();

@@ -13,7 +13,7 @@ import {
   Send,
   Download
 } from 'lucide-react';
-import { formatCurrency } from '../utils/platformUtils';
+import { formatCurrency } from '../utils/goatBusinessLogic';
 import { goatApi } from '../api/goat';
 import { walletApi } from '../api/wallet';
 

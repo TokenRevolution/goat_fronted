@@ -164,22 +164,69 @@ export const calculateDailyReturn = (depositAmount) => {
 };
 
 /**
+ * Calculate days elapsed since the beginning of current month
+ * @returns {number} - Days elapsed including today (1-31)
+ */
+export const getDaysElapsedThisMonth = () => {
+  const now = new Date();
+  return now.getDate(); // Returns day of month (1-31)
+};
+
+/**
+ * Calculate precise days elapsed since a specific timestamp (REAL-TIME CALCULATION)
+ * @param {Date|string} startDate - The starting date/timestamp
+ * @returns {number} - Precise days elapsed with up to 6 decimals (seconds precision)
+ */
+export const getDaysElapsedSinceDate = (startDate) => {
+  if (!startDate) return 0;
+  
+  const start = new Date(startDate);
+  const now = new Date();
+  
+  // Calculate exact milliseconds difference WITHOUT modifying times
+  const timeDiffMs = now.getTime() - start.getTime();
+  
+  // Convert to seconds, then to days (86400 seconds = 1 day)
+  const secondsDiff = timeDiffMs / 1000;
+  const daysDiff = secondsDiff / 86400; // 86400 seconds in a day
+  
+  // Return precise days with up to 6 decimal places
+  // Minimum 0.000012 (≈1 second = 0.000011574 days)
+  return Math.max(0.000012, parseFloat(daysDiff.toFixed(6)));
+};
+
+/**
  * Calculate accumulated personal capital returns (paid monthly via cashout)
  * @param {number} depositAmount - User's personal deposit
- * @param {number} daysAccumulated - Days since last cashout
+ * @param {Date|string|number} daysOrDate - Days since last cashout, deposit date, or null for current month elapsed
  * @returns {object} - Accumulated returns info
  */
-export const calculatePersonalCapitalReturns = (depositAmount, daysAccumulated = 30) => {
+export const calculatePersonalCapitalReturns = (depositAmount, daysOrDate = null) => {
   const tierInfo = calculateReturnRate(depositAmount);
   const monthlyRate = tierInfo.rate / 100; // TASSI MENSILI!
   const dailyRate = monthlyRate / 30; // Diviso 30 giorni del mese
   const dailyAmount = depositAmount * dailyRate;
-  const accumulatedAmount = dailyAmount * daysAccumulated;
+  
+  let actualDaysAccumulated;
+  
+  // Determine how to calculate days
+  if (typeof daysOrDate === 'number') {
+    // Legacy: number of days passed directly
+    actualDaysAccumulated = daysOrDate;
+  } else if (daysOrDate !== null && daysOrDate !== undefined) {
+    // New: calculate from deposit date - PRECISE TO THE SECOND
+    actualDaysAccumulated = getDaysElapsedSinceDate(daysOrDate);
+  } else {
+    // Fallback: calculate from beginning of current month
+    actualDaysAccumulated = getDaysElapsedThisMonth();
+  }
+  
+  const accumulatedAmount = dailyAmount * actualDaysAccumulated;
   
   return {
     dailyAmount,
     accumulatedAmount,
-    daysAccumulated,
+    daysAccumulated: actualDaysAccumulated,
     nextCashoutDate: getNextCashoutDate(),
     tier: tierInfo.label,
     rate: tierInfo.rate, // Tasso mensile
@@ -429,6 +476,29 @@ export const formatCurrency = (amount) => {
 };
 
 /**
+ * Format currency with high precision (up to 6 decimals)
+ * @param {number} amount - Amount to format
+ * @param {number} maxDecimals - Maximum decimal places (default 6)
+ * @returns {string} - Formatted currency with precision
+ */
+export const formatCurrencyPrecise = (amount, maxDecimals = 6) => {
+  if (!amount || isNaN(amount)) return '$0.000000';
+  
+  // For very small amounts, show up to 6 decimals
+  if (amount < 0.01) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: maxDecimals,
+      maximumFractionDigits: maxDecimals
+    }).format(amount);
+  }
+  
+  // For larger amounts, use standard 2 decimal format
+  return formatCurrency(amount);
+};
+
+/**
  * Format percentage with proper decimals
  * @param {number} percentage - Percentage to format
  * @returns {string} - Formatted percentage
@@ -486,11 +556,16 @@ export default {
   POSITION_LEVELS,
   calculateReturnRate,
   calculateDailyReturn,
+  calculatePersonalCapitalReturns,
+  calculateDailyNetworkEarnings,
+  getDaysElapsedThisMonth,
+  getDaysElapsedSinceDate,
   calculateUserLevel,
   calculateLevelProgress,
   calculateCashoutLimits,
   calculateNetworkBonuses,
   formatCurrency,
+  formatCurrencyPrecise,
   formatPercentage,
   getLevelColor,
   getLevelBadgeColor
